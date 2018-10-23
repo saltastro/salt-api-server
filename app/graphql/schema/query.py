@@ -11,17 +11,21 @@ Token = namedtuple('Token', ['token'])
 
 
 class Query(ObjectType):
-    auth_token = Field(AuthToken,
+    auth_token = Field(lambda: AuthToken,
                        description='Request an authentication token.',
                        username=NonNull(String, description='username'),
                        password=NonNull(String, description='Password'))
 
     def resolve_auth_token(self, info, username, password):
-        # query for the user vwith the given credentials
-        sql = 'SELECT PiptUser_Id FROM PiptUser WHERE Username=%s AND Password=MD5(%s)'
-        df = pd.read_sql(sql, con=db.engine, params=(username, password))
+        # query for the user with the given credentials
+        sql = '''SELECT PiptUser_Id
+                        FROM PiptUser
+                        WHERE Username=%(username)s AND Password=MD5(%(password)s)'''
+        df = pd.read_sql(sql,
+                         con=db.engine,
+                         params=dict(username=username, password=password))
 
-        # check wther a user was found
+        # check whether a user was found
         if len(df) == 0:
             raise GraphQLError('username or password wrong')
 
