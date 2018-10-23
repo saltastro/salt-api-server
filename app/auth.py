@@ -49,18 +49,18 @@ def verify_token():
 
     """
     g.user = None
-    if 'Authorization' in request.headers:
-        parts = request.headers['Authorization'].split(None, 1)
+    if "Authorization" in request.headers:
+        parts = request.headers["Authorization"].split(None, 1)
         if len(parts) > 1:
             scheme, token = parts
-            if scheme == 'Token':
+            if scheme == "Token":
                 try:
                     user = decode(token)
                 except jwt.exceptions.DecodeError:
                     user = {}
 
-                if 'user_id' in user:
-                    g.user = User(user['user_id'])
+                if "user_id" in user:
+                    g.user = User(user["user_id"])
 
 
 def encode(content):
@@ -80,9 +80,9 @@ def encode(content):
 
     """
 
-    token = jwt.encode(content, os.environ['JWT_SECRET_KEY'], algorithm='HS256')
+    token = jwt.encode(content, os.environ["JWT_SECRET_KEY"], algorithm="HS256")
 
-    return token.decode('UTF-8')
+    return token.decode("UTF-8")
 
 
 def decode(token):
@@ -101,6 +101,6 @@ def decode(token):
 
     """
 
-    token_bytes = token.encode('UTF-8')
+    token_bytes = token.encode("UTF-8")
 
-    return jwt.decode(token_bytes, os.environ['JWT_SECRET_KEY'], algorithm='HS256')
+    return jwt.decode(token_bytes, os.environ["JWT_SECRET_KEY"], algorithm="HS256")

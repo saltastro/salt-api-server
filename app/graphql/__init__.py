@@ -1,5 +1,5 @@
 from flask import Blueprint
 
-graphql = Blueprint('graphql', __name__)
+graphql = Blueprint("graphql", __name__)
 
-from . import views # noqa E402, F401
+from . import views  # noqa E402, F401

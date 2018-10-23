@@ -18,7 +18,7 @@ def app():
 
     """
 
-    app = create_app('testing')
+    app = create_app("testing")
 
     yield app
 
@@ -38,14 +38,14 @@ def graphql(client):
 
     def graphql_query(query, user_id):
         # get the authentication token.
-        token = encode({'user_id': user_id})
+        token = encode({"user_id": user_id})
 
         # send the GraphQL to the server.
-        res = client.post('/graphql',
-                          json={'query': query},
-                          headers={
-                              'Authorization': 'Token {token}'.format(token=token)}
-                          )
+        res = client.post(
+            "/graphql",
+            json={"query": query},
+            headers={"Authorization": "Token {token}".format(token=token)},
+        )
 
         # return the server response as a JSON dict
         return res.get_json()

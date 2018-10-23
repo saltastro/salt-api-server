@@ -16,8 +16,7 @@ class LoggingMiddleware:
 
 schema = Schema(query=Query)
 
-view_func = GraphQLView.as_view('graphql',
-                                schema=schema,
-                                middleware=[LoggingMiddleware()],
-                                graphiql=True)
-graphql.add_url_rule('/graphql', view_func=view_func)
+view_func = GraphQLView.as_view(
+    "graphql", schema=schema, middleware=[LoggingMiddleware()], graphiql=True
+)
+graphql.add_url_rule("/graphql", view_func=view_func)

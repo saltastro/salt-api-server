@@ -32,27 +32,21 @@ def error(message):
 
     """
 
-    return {
-        "errors": [
-            {
-                "message": message
-            }
-        ]
-    }
+    return {"errors": [{"message": message}]}
 
 
 @main.app_errorhandler(404)
 def not_found(e):
-    return jsonify(error('Not found')), 404
+    return jsonify(error("Not found")), 404
 
 
 @main.app_errorhandler(500)
 def internal_server_error(e):
     log_exception(e)
-    return jsonify(error('Internal server error')), 500
+    return jsonify(error("Internal server error")), 500
 
 
 @main.app_errorhandler(Exception)
 def exception_raised(e):
     log_exception(e)
-    return jsonify(error('Internal server error')), 500
+    return jsonify(error("Internal server error")), 500

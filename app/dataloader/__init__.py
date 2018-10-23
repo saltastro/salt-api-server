@@ -1,1 +1,1 @@
-from .proposal_loader import ProposalLoader
+from .proposal_loader import ProposalLoader  # noqa F401
