@@ -30,6 +30,12 @@ def log_exception(e):
 
 db = SQLAlchemy()
 
+from app.dataloader import ProposalLoader
+
+loaders = {
+    'proposal_loader': ProposalLoader(),
+}
+
 # these imports can only happen here as otherwise there might be import errors
 from app.auth import verify_token  # noqa E402
 from app.main import main  # noqa E402

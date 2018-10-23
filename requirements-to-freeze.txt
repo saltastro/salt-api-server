@@ -5,6 +5,7 @@ flask_graphql
 flask_sqlalchemy
 graphene
 pandas
+promise
 PyJWT
 PyMySQL
 sentry-sdk[flask]
