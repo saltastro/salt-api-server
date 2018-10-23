@@ -6,6 +6,10 @@ from . import graphql
 
 
 class LoggingMiddleware:
+    """
+    Graphene middleware for logging errors.
+    """
+
     def on_error(self, e):
         log_exception(e)
         raise e
