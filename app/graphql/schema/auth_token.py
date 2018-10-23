@@ -13,10 +13,4 @@ form "Token {token}", where {token} is the JWT token.'''  # noqa
     token = String(description='Authentication token')
 
     def resolve_token(self, info):
-        username = self['username']
-        password = self['password']
-        if username != password:
-            raise GraphQLError('username or password wrong')
-
-        # CHANGE THIS LINE
-        return encode(dict(user_id=-42))
+        return self.token
