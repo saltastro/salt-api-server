@@ -1,0 +1,23 @@
+# required for running the server
+
+flask
+flask_graphql
+flask_sqlalchemy
+graphene
+pandas
+PyJWT
+PyMySQL
+sentry-sdk[flask]
+snapshottest
+
+# development tool requirements
+
+black
+bumpversion
+coverage
+flake8
+pytest
+pytest-flask
+pytest-runner
+Sphinx
+tox
