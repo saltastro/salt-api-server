@@ -29,9 +29,10 @@ def log_exception(e):
 
 db = SQLAlchemy()
 
-from app.dataloader import ProposalLoader  # noqa E402
+from app.dataloader import ObservationLoader, ProposalLoader, BlockLoader  # noqa E402
 
-loaders = {"proposal_loader": ProposalLoader()}
+loaders = {"proposal_loader": ProposalLoader(), 'observation_loader': ObservationLoader(),
+           'block_loader': BlockLoader()}
 
 # these imports can only happen here as otherwise there might be import errors
 from app.auth import verify_token  # noqa E402

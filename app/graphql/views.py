@@ -1,7 +1,7 @@
 from flask_graphql import GraphQLView
 from graphene import Schema
 from app import log_exception
-from app.graphql.schema.query import Query
+from app.graphql.schema.schema import Query
 from . import graphql
 
 
