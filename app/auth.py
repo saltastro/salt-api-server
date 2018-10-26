@@ -1,6 +1,8 @@
 import jwt
 import os
 from flask import g, request
+from saltuser import SALTUser
+from app import db
 
 
 class User:
@@ -34,7 +36,7 @@ def load_user(user_id):
 
     """
 
-    return User(int(user_id))
+    return SALTUser(int(user_id), db.engine)
 
 
 def verify_token():
@@ -60,7 +62,7 @@ def verify_token():
                     user = {}
 
                 if "user_id" in user:
-                    g.user = User(user["user_id"])
+                    g.user = load_user(user["user_id"])
 
 
 def encode(content):

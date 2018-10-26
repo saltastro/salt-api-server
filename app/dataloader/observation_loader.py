@@ -5,7 +5,9 @@ from promise.dataloader import DataLoader
 from app import db
 
 
-ObservationContent = namedtuple('ObservationContent', ['block', 'night', 'status', 'rejection_reason'])
+ObservationContent = namedtuple(
+    "ObservationContent", ["block", "night", "status", "rejection_reason"]
+)
 
 
 class ObservationLoader(DataLoader):
@@ -19,7 +21,7 @@ class ObservationLoader(DataLoader):
         return Promise.resolve(self.get_observations(observation_ids))
 
     def get_observations(self, observation_ids):
-        sql = '''
+        sql = """
 SELECT BlockVisit_Id, Block_Id, Date, BlockVisitStatus, RejectedReason
        FROM BlockVisit AS bv
        JOIN NightInfo AS ni ON bv.NightInfo_Id = ni.NightInfo_Id
@@ -27,16 +29,21 @@ SELECT BlockVisit_Id, Block_Id, Date, BlockVisitStatus, RejectedReason
        LEFT JOIN BlockRejectedReason AS brr
             ON bv.BlockRejectedReason_Id = brr.BlockRejectedReason_Id
        WHERE BlockVisit_Id IN %(block_visit_ids)s
-        '''
-        df = pd.read_sql(sql, con=db.engine, params=dict(block_visit_ids=observation_ids))
+        """
+        df = pd.read_sql(
+            sql, con=db.engine, params=dict(block_visit_ids=observation_ids)
+        )
 
         def get_observation_content(observation_id):
-            row = df[df['BlockVisit_Id'] == observation_id]
-            return ObservationContent(block=int(row['Block_Id'].tolist()[0]),
-                                      night=row['Date'].tolist()[0],
-                                      status=row['BlockVisitStatus'].tolist()[0],
-                                      rejection_reason=row['RejectedReason'].tolist()[0])
+            row = df[df["BlockVisit_Id"] == observation_id]
+            return ObservationContent(
+                block=int(row["Block_Id"].tolist()[0]),
+                night=row["Date"].tolist()[0],
+                status=row["BlockVisitStatus"].tolist()[0],
+                rejection_reason=row["RejectedReason"].tolist()[0],
+            )
 
-        return [get_observation_content(observation_id) for observation_id in observation_ids]
-
-
+        return [
+            get_observation_content(observation_id)
+            for observation_id in observation_ids
+        ]

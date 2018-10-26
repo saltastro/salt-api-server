@@ -8,6 +8,7 @@ pandas
 promise
 PyJWT
 PyMySQL
+saltuser
 sentry-sdk[flask]
 snapshottest
 
