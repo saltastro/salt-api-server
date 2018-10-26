@@ -5,7 +5,6 @@ from flask import g, request
 from graphene import Boolean, Enum, Field, Interface, List, Mutation, NonNull, ObjectType, String
 from graphene.types import Date
 from graphql import GraphQLError
-from promise import Promise
 from app import db
 from app.auth import encode
 from app import loaders
@@ -266,8 +265,6 @@ class PutBlockOnHold(Mutation):
 
     ok = Boolean(description='Whether the block has been put on hold successfully.')
 
-    # block = Field(lambda: Block, description='The block which has been put on hold.')
-
     def mutate(self, info, proposal_code, block_name, reason=None):
         # sanity check: is the user allowed to do this?
         _check_auth_token()
@@ -299,15 +296,16 @@ SELECT Block_Id, BlockStatus
         # update the block status
         sql = '''
 UPDATE Block SET BlockStatus_Id=
-               (SELECT BlockStatus_Id FROM BlockStatus WHERE BlockStatus='On hold')
+               (SELECT BlockStatus_Id FROM BlockStatus WHERE BlockStatus='On hold'),
+                 BlockStatusReason=:reason
        WHERE Block_Id=:block_id
         '''
-        db.engine.execute(text(sql), block_id=block_id)
+        db.engine.execute(text(sql), block_id=block_id, reason=reason)
 
         # success!
         ok = True
 
-        return Promise.resolve(PutBlockOnHold(ok=ok)
+        return PutBlockOnHold(ok=ok)
 
 
 class PutBlockOffHold(Mutation):
@@ -353,10 +351,11 @@ SELECT Block_Id, BlockStatus
         # update the block status
         sql = '''
 UPDATE Block SET BlockStatus_Id=
-               (SELECT BlockStatus_Id FROM BlockStatus WHERE BlockStatus='Active')
+               (SELECT BlockStatus_Id FROM BlockStatus WHERE BlockStatus='Active'),
+                 BlockStatusReason=:reason
        WHERE Block_Id=:block_id
         '''
-        db.engine.execute(text(sql), block_id=block_id)
+        db.engine.execute(text(sql), block_id=block_id, reason=reason)
 
         # success!
         ok = True
