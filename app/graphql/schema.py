@@ -2,7 +2,17 @@ from collections import namedtuple
 import pandas as pd
 from sqlalchemy import text
 from flask import g, request
-from graphene import Boolean, Enum, Field, Interface, List, Mutation, NonNull, ObjectType, String
+from graphene import (
+    Boolean,
+    Enum,
+    Field,
+    Interface,
+    List,
+    Mutation,
+    NonNull,
+    ObjectType,
+    String,
+)
 from graphene.types import Date
 from graphql import GraphQLError
 from app import db
@@ -16,8 +26,8 @@ _TokenContent = namedtuple("TokenContent", ["token"])
 
 
 def _check_auth_token():
-    if 'Authorization' not in request.headers or not g.user:
-        raise GraphQLError('A valid authentication token is required.')
+    if "Authorization" not in request.headers or not g.user:
+        raise GraphQLError("A valid authentication token is required.")
 
 
 class Query(ObjectType):
@@ -55,7 +65,11 @@ class Query(ObjectType):
         # sanity check: may the user view the proposal?
         _check_auth_token()
         if not g.user.may_view_proposal(proposal_code=proposal_code):
-            raise GraphQLError('You are not allowed to view the proposal {proposal_code}'.format(proposal_code=proposal_code))
+            raise GraphQLError(
+                "You are not allowed to view the proposal {proposal_code}".format(
+                    proposal_code=proposal_code
+                )
+            )
 
         return loaders["proposal_loader"].load(proposal_code)
 
@@ -257,22 +271,26 @@ class ProposalObservation(ObjectType):
 
 class PutBlockOnHold(Mutation):
     class Arguments:
-        proposal_code = NonNull(String, description='The proposal code.')
+        proposal_code = NonNull(String, description="The proposal code.")
 
-        block_name = NonNull(String, description='The name of the block.')
+        block_name = NonNull(String, description="The name of the block.")
 
-        reason = String(description='The reason for putting the block on hold.')
+        reason = String(description="The reason for putting the block on hold.")
 
-    ok = Boolean(description='Whether the block has been put on hold successfully.')
+    ok = Boolean(description="Whether the block has been put on hold successfully.")
 
     def mutate(self, info, proposal_code, block_name, reason=None):
         # sanity check: is the user allowed to do this?
         _check_auth_token()
         if not g.user.may_edit_proposal(proposal_code=proposal_code):
-            raise GraphQLError('You are not allowed to modify the proposal {proposal_code}.'.format(proposal_code=proposal_code))
+            raise GraphQLError(
+                "You are not allowed to modify the proposal {proposal_code}.".format(
+                    proposal_code=proposal_code
+                )
+            )
 
         # sanity check: does the block exist?
-        sql = '''
+        sql = """
 SELECT Block_Id, BlockStatus
        FROM Block AS b
        JOIN BlockStatus AS bs ON b.BlockStatus_Id = bs.BlockStatus_Id
@@ -282,24 +300,32 @@ SELECT Block_Id, BlockStatus
              AND BlockStatus!='Superseded'
        ORDER BY Block_Id
        LIMIT 1             
-        '''
-        df = pd.read_sql(sql, con=db.engine, params=dict(proposal_code=proposal_code, name=block_name))
+        """
+        df = pd.read_sql(
+            sql,
+            con=db.engine,
+            params=dict(proposal_code=proposal_code, name=block_name),
+        )
         if len(df) == 0:
-            raise GraphQLError('There is no Block "{name}" in the proposal {proposal_code}.'.format(name=block_name, proposal_code=proposal_code))
+            raise GraphQLError(
+                'There is no Block "{name}" in the proposal {proposal_code}.'.format(
+                    name=block_name, proposal_code=proposal_code
+                )
+            )
 
         # sanity check: is the block active?
-        block_id = df['Block_Id'][0].item()
-        block_status = df['BlockStatus'][0]
-        if block_status != 'Active':
-            raise GraphQLError('Only active blocks can be put on hold.')
+        block_id = df["Block_Id"][0].item()
+        block_status = df["BlockStatus"][0]
+        if block_status != "Active":
+            raise GraphQLError("Only active blocks can be put on hold.")
 
         # update the block status
-        sql = '''
+        sql = """
 UPDATE Block SET BlockStatus_Id=
                (SELECT BlockStatus_Id FROM BlockStatus WHERE BlockStatus='On hold'),
                  BlockStatusReason=:reason
        WHERE Block_Id=:block_id
-        '''
+        """
         db.engine.execute(text(sql), block_id=block_id, reason=reason)
 
         # success!
@@ -310,13 +336,13 @@ UPDATE Block SET BlockStatus_Id=
 
 class PutBlockOffHold(Mutation):
     class Arguments:
-        proposal_code = NonNull(String, description='The proposal code.')
+        proposal_code = NonNull(String, description="The proposal code.")
 
-        block_name = NonNull(String, description='The name of the block.')
+        block_name = NonNull(String, description="The name of the block.")
 
-        reason = String(description='The reason for putting the block off hold.')
+        reason = String(description="The reason for putting the block off hold.")
 
-    ok = Boolean(description='Whether the block has been put off hold successfully.')
+    ok = Boolean(description="Whether the block has been put off hold successfully.")
 
     # block = Field(lambda: Block, description='The block which has been put on hold.')
 
@@ -324,10 +350,14 @@ class PutBlockOffHold(Mutation):
         # sanity check: is the user allowed to do this?
         _check_auth_token()
         if not g.user.may_edit_proposal(proposal_code=proposal_code):
-            raise GraphQLError('You are not allowed to modify the proposal {proposal_code}.'.format(proposal_code=proposal_code))
+            raise GraphQLError(
+                "You are not allowed to modify the proposal {proposal_code}.".format(
+                    proposal_code=proposal_code
+                )
+            )
 
         # sanity check: does the block exist?
-        sql = '''
+        sql = """
 SELECT Block_Id, BlockStatus
        FROM Block AS b
        JOIN BlockStatus AS bs ON b.BlockStatus_Id = bs.BlockStatus_Id
@@ -337,24 +367,32 @@ SELECT Block_Id, BlockStatus
              AND BlockStatus!='Superseded'
        ORDER BY Block_Id
        LIMIT 1             
-        '''
-        df = pd.read_sql(sql, con=db.engine, params=dict(proposal_code=proposal_code, name=block_name))
+        """
+        df = pd.read_sql(
+            sql,
+            con=db.engine,
+            params=dict(proposal_code=proposal_code, name=block_name),
+        )
         if len(df) == 0:
-            raise GraphQLError('There is no Block "{name}" in the proposal {proposal_code}.'.format(name=block_name, proposal_code=proposal_code))
+            raise GraphQLError(
+                'There is no Block "{name}" in the proposal {proposal_code}.'.format(
+                    name=block_name, proposal_code=proposal_code
+                )
+            )
 
         # sanity check: is the block on hold?
-        block_id = df['Block_Id'][0].item()
-        block_status = df['BlockStatus'][0]
-        if block_status != 'On Hold':
-            raise GraphQLError('Only blocks on hold can be put off hold.')
+        block_id = df["Block_Id"][0].item()
+        block_status = df["BlockStatus"][0]
+        if block_status != "On Hold":
+            raise GraphQLError("Only blocks on hold can be put off hold.")
 
         # update the block status
-        sql = '''
+        sql = """
 UPDATE Block SET BlockStatus_Id=
                (SELECT BlockStatus_Id FROM BlockStatus WHERE BlockStatus='Active'),
                  BlockStatusReason=:reason
        WHERE Block_Id=:block_id
-        '''
+        """
         db.engine.execute(text(sql), block_id=block_id, reason=reason)
 
         # success!
@@ -363,11 +401,7 @@ UPDATE Block SET BlockStatus_Id=
         return PutBlockOffHold(ok=ok)
 
 
-
-
 class Mutation(ObjectType):
-    putBlockOnHold = PutBlockOnHold.Field(description='Put a block on hold.')
+    putBlockOnHold = PutBlockOnHold.Field(description="Put a block on hold.")
 
-    putBlockOffHold = PutBlockOffHold.Field(description='Put a block off hold.')
-
-
+    putBlockOffHold = PutBlockOffHold.Field(description="Put a block off hold.")
