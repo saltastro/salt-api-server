@@ -29,7 +29,7 @@ SELECT Block_Id, BlockCode, Proposal_Code, Block_Name, BlockStatus, BlockStatusR
         def get_block_content(block_id):
             row = df[df["Block_Id"] == block_id]
 
-            status = df["BlockStatus"].tolist()[0]
+            status = row["BlockStatus"].tolist()[0]
             if status.lower() == "not set":
                 status = None
             return BlockContent(
