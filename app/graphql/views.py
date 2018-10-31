@@ -27,4 +27,4 @@ schema = Schema(query=Query, mutation=Mutation)
 view_func = GraphQLView.as_view(
     "graphql", schema=schema, middleware=[LoggingMiddleware()], graphiql=True
 )
-graphql.add_url_rule("/graphql", view_func=view_func)
+graphql.add_url_rule("/graphql-api", view_func=view_func)
