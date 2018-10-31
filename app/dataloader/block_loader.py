@@ -36,7 +36,7 @@ SELECT Block_Id, BlockCode, Proposal_Code, Block_Name, BlockStatus, BlockStatusR
                 id=row["Block_Id"].tolist()[0],
                 block_code=row["BlockCode"].tolist()[0],
                 proposal=row["Proposal_Code"].tolist()[0],
-                name=df["Block_Name"].tolist()[0],
+                name=row["Block_Name"].tolist()[0],
                 status=status,
                 status_reason=df["BlockStatusReason"].tolist()[0],
             )

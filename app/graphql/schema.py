@@ -102,9 +102,11 @@ class Proposal(ObjectType):
 
     title = NonNull(String, description="The proposal title.")
 
+    blocks = List(NonNull(lambda: Block), description="The blocks in the proposal.")
+
     observations = List(
         NonNull(lambda: ProposalObservation),
-        description="The observations for this proposal",
+        description="The observations for the proposal",
     )
 
     def resolve_proposal_code(self, info):
@@ -112,6 +114,9 @@ class Proposal(ObjectType):
 
     def resolve_title(self, info):
         return self.title
+
+    def resolve_blocks(self, info):
+        return loaders['block_loader'].load_many(self.blocks)
 
     def resolve_observations(self, info):
         return loaders["observation_loader"].load_many(self.observations)
