@@ -6,7 +6,7 @@ from app import db
 
 
 ProposalContent = namedtuple(
-    "ProposalContent", ["proposal_code", "title", 'blocks', "observations"]
+    "ProposalContent", ["proposal_code", "title", "blocks", "observations"]
 )
 
 
@@ -58,8 +58,8 @@ SELECT Proposal_Code, GROUP_CONCAT(BlockVisit_Id) AS BlockVisit_Ids
             general_info = df_general_info[
                 df_general_info["Proposal_Code"] == proposal_code
             ]
-            block_data = df_blocks[df_blocks['Proposal_Code'] == proposal_code]
-            blocks = [int(id) for id in block_data["Block_Ids"].tolist()[0].split(',')]
+            block_data = df_blocks[df_blocks["Proposal_Code"] == proposal_code]
+            blocks = [int(id) for id in block_data["Block_Ids"].tolist()[0].split(",")]
             block_visits = df_block_visits[
                 df_block_visits["Proposal_Code"] == proposal_code
             ]

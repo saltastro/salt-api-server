@@ -6,8 +6,7 @@ from app import db
 
 
 BlockContent = namedtuple(
-    "BlockContent",
-    ["id", "block_code", "proposal", "name", "status", "status_reason"],
+    "BlockContent", ["id", "block_code", "proposal", "name", "status", "status_reason"]
 )
 
 

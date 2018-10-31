@@ -117,7 +117,7 @@ class Proposal(ObjectType):
         return self.title
 
     def resolve_blocks(self, info):
-        return loaders['block_loader'].load_many(self.blocks)
+        return loaders["block_loader"].load_many(self.blocks)
 
     def resolve_observations(self, info):
         return loaders["observation_loader"].load_many(self.observations)
@@ -402,7 +402,9 @@ class SubmitProposal(Mutation):
 
 class SubmitBlock(Mutation):
     class Arguments:
-        proposal_code = NonNull(String, description="The proposal code for a resubmission.")
+        proposal_code = NonNull(
+            String, description="The proposal code for a resubmission."
+        )
 
         block_code = String(description="The block code for a resubmission.")
 
@@ -419,6 +421,6 @@ class Mutation(ObjectType):
 
     putBlockOffHold = PutBlockOffHold.Field(description="Put a block off hold.")
 
-    submitProposal = SubmitProposal.Field(description='Submit a proposal.')
+    submitProposal = SubmitProposal.Field(description="Submit a proposal.")
 
-    submitBlock = SubmitBlock.Field(description='Submit a block.')
+    submitBlock = SubmitBlock.Field(description="Submit a block.")
