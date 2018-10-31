@@ -4,6 +4,7 @@ flask
 flask_graphql
 flask_sqlalchemy
 graphene
+graphene-file-upload
 pandas
 promise
 PyJWT
