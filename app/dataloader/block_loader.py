@@ -7,7 +7,7 @@ from app import db
 
 BlockContent = namedtuple(
     "BlockContent",
-    ["block_id", "block_code", "proposal", "name", "status", "status_reason"],
+    ["id", "block_code", "proposal", "name", "status", "status_reason"],
 )
 
 
@@ -33,7 +33,7 @@ SELECT Block_Id, BlockCode, Proposal_Code, Block_Name, BlockStatus, BlockStatusR
             if status.lower() == "not set":
                 status = None
             return BlockContent(
-                block_id=row["Block_Id"].tolist()[0],
+                id=row["Block_Id"].tolist()[0],
                 block_code=row["BlockCode"].tolist()[0],
                 proposal=row["Proposal_Code"].tolist()[0],
                 name=df["Block_Name"].tolist()[0],

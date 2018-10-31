@@ -107,9 +107,6 @@ class Proposal(ObjectType):
         description="The observations for this proposal",
     )
 
-    def resolve_block_id(self, info):
-        return self.block_id
-
     def resolve_proposal_code(self, info):
         return self.proposal_code
 
@@ -176,6 +173,9 @@ class Block(ObjectType):
     @property
     def description(self):
         return "THe smallest schedulable unit in a proposal."
+
+    def resolve_id(self, info):
+        return self.id
 
     def resolve_proposal(self, info):
         return loaders["proposal_loader"].load(self.proposal)
