@@ -11,6 +11,9 @@ ProposalContent = namedtuple(
 
 
 class ProposalLoader(DataLoader):
+    def __init__(self):
+        DataLoader.__init__(self, cache=False)
+
     def batch_load_fn(self, proposal_codes):
         return Promise.resolve(self.get_proposals(proposal_codes))
 

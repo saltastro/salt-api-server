@@ -12,6 +12,9 @@ BlockContent = namedtuple(
 
 
 class BlockLoader(DataLoader):
+    def __init__(self):
+        DataLoader.__init__(self, cache=False)
+
     def batch_load_fn(self, block_ids):
         return Promise.resolve(self.get_blocks(block_ids))
 

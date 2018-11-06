@@ -18,6 +18,9 @@ class ObservationLoader(DataLoader):
     Observations in the GraphQL schema are called BlockVisit in the database.
     """
 
+    def __init__(self):
+        DataLoader.__init__(self, cache=False)
+
     def batch_load_fn(self, observation_ids):
         return Promise.resolve(self.get_observations(observation_ids))
 
