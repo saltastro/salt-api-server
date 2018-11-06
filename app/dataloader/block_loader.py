@@ -2,6 +2,7 @@ from collections import namedtuple
 import pandas as pd
 from promise import Promise
 from promise.dataloader import DataLoader
+from graphql import GraphQLError
 from app import db
 
 
@@ -27,7 +28,10 @@ SELECT Block_Id, BlockCode, Proposal_Code, Block_Name, BlockStatus, BlockStatusR
 
         def get_block_content(block_id):
             row = df[df["Block_Id"] == block_id]
-
+            if len(row) == 0:
+                raise GraphQLError(
+                    "There is no block with id {block_id}".format(block_id=block_id)
+                )
             status = row["BlockStatus"].tolist()[0]
             if status.lower() == "not set":
                 status = None

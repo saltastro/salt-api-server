@@ -2,6 +2,7 @@ from collections import namedtuple
 import pandas as pd
 from promise import Promise
 from promise.dataloader import DataLoader
+from graphql import GraphQLError
 from app import db
 
 
@@ -36,6 +37,12 @@ SELECT BlockVisit_Id, Block_Id, Date, BlockVisitStatus, RejectedReason
 
         def get_observation_content(observation_id):
             row = df[df["BlockVisit_Id"] == observation_id]
+            if len(row) == 0:
+                raise GraphQLError(
+                    "There is no observation with id {observation_id}".format(
+                        observation_id=observation_id
+                    )
+                )
             return ObservationContent(
                 block=int(row["Block_Id"].tolist()[0]),
                 night=row["Date"].tolist()[0],

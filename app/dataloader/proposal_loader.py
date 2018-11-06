@@ -59,13 +59,20 @@ SELECT Proposal_Code, GROUP_CONCAT(BlockVisit_Id) AS BlockVisit_Ids
                 df_general_info["Proposal_Code"] == proposal_code
             ]
             block_data = df_blocks[df_blocks["Proposal_Code"] == proposal_code]
-            blocks = [int(id) for id in block_data["Block_Ids"].tolist()[0].split(",")]
+            block_id_list = block_data["Block_Ids"].tolist()
+            if len(block_id_list) > 0:
+                blocks = [int(id) for id in block_id_list[0].split(",")]
+            else:
+                blocks = []
             block_visits = df_block_visits[
                 df_block_visits["Proposal_Code"] == proposal_code
             ]
-            observations = [
-                int(id) for id in block_visits["BlockVisit_Ids"].tolist()[0].split(",")
-            ]
+            block_visit_list = block_visits["BlockVisit_Ids"].tolist()
+            if len(block_visit_list) > 0:
+                observations = [int(id) for id in block_visit_list[0].split(",")]
+            else:
+                observations = []
+            print(observations)
             return ProposalContent(
                 proposal_code=proposal_code,
                 title=general_info["Title"].tolist()[0],
