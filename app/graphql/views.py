@@ -1,10 +1,7 @@
-from functools import wraps
-from flask import g, jsonify, request
-from flask_graphql import GraphQLView
+from graphene_file_upload.flask import FileUploadGraphQLView
 from graphene import Schema
 from app import log_exception
 from app.graphql.schema import Mutation, Query
-from app.main.errors import error
 from . import graphql
 
 
@@ -24,7 +21,7 @@ class LoggingMiddleware:
 
 schema = Schema(query=Query, mutation=Mutation)
 
-view_func = GraphQLView.as_view(
+view_func = FileUploadGraphQLView.as_view(
     "graphql", schema=schema, middleware=[LoggingMiddleware()], graphiql=True
 )
-graphql.add_url_rule("/graphql", view_func=view_func)
+graphql.add_url_rule("/graphql-api", view_func=view_func)

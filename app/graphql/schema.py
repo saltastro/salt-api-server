@@ -16,6 +16,7 @@ from graphene import (
     String,
 )
 from graphene.types import Date
+from graphene_file_upload.scalars import Upload
 from graphql import GraphQLError
 from app import db
 from app.auth import encode
@@ -102,19 +103,21 @@ class Proposal(ObjectType):
 
     title = NonNull(String, description="The proposal title.")
 
+    blocks = List(NonNull(lambda: Block), description="The blocks in the proposal.")
+
     observations = List(
         NonNull(lambda: ProposalObservation),
-        description="The observations for this proposal",
+        description="The observations for the proposal",
     )
-
-    def resolve_block_id(self, info):
-        return self.block_id
 
     def resolve_proposal_code(self, info):
         return self.proposal_code
 
     def resolve_title(self, info):
         return self.title
+
+    def resolve_blocks(self, info):
+        return loaders["block_loader"].load_many(self.blocks)
 
     def resolve_observations(self, info):
         return loaders["observation_loader"].load_many(self.observations)
@@ -176,6 +179,9 @@ class Block(ObjectType):
     @property
     def description(self):
         return "THe smallest schedulable unit in a proposal."
+
+    def resolve_id(self, info):
+        return self.id
 
     def resolve_proposal(self, info):
         return loaders["proposal_loader"].load(self.proposal)
@@ -382,7 +388,39 @@ UPDATE Block SET BlockStatus_Id=
         return PutBlockOnHold(ok=ok)
 
 
+class SubmitProposal(Mutation):
+    class Arguments:
+        proposal_code = String(description="The proposal code for a resubmission.")
+
+        zip = NonNull(Upload, description="A zip file with the proposal content.")
+
+    proposal = NonNull(lambda: Proposal, description="The submitted proposal.")
+
+    def mutate(self, info):
+        raise NotImplementedError("Not implemented yet.")
+
+
+class SubmitBlock(Mutation):
+    class Arguments:
+        proposal_code = NonNull(
+            String, description="The proposal code for a resubmission."
+        )
+
+        block_code = String(description="The block code for a resubmission.")
+
+        zip = NonNull(Upload, description="A zip file with the block content.")
+
+    block = NonNull(lambda: Block, description="The submitted block.")
+
+    def mutate(self, info):
+        raise NotImplementedError("Not implemented yet.")
+
+
 class Mutation(ObjectType):
     putBlockOnHold = PutBlockOnHold.Field(description="Put a block on hold.")
 
     putBlockOffHold = PutBlockOffHold.Field(description="Put a block off hold.")
+
+    submitProposal = SubmitProposal.Field(description="Submit a proposal.")
+
+    submitBlock = SubmitBlock.Field(description="Submit a block.")

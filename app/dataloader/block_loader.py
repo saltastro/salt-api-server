@@ -2,16 +2,19 @@ from collections import namedtuple
 import pandas as pd
 from promise import Promise
 from promise.dataloader import DataLoader
+from graphql import GraphQLError
 from app import db
 
 
 BlockContent = namedtuple(
-    "BlockContent",
-    ["block_id", "block_code", "proposal", "name", "status", "status_reason"],
+    "BlockContent", ["id", "block_code", "proposal", "name", "status", "status_reason"]
 )
 
 
 class BlockLoader(DataLoader):
+    def __init__(self):
+        DataLoader.__init__(self, cache=False)
+
     def batch_load_fn(self, block_ids):
         return Promise.resolve(self.get_blocks(block_ids))
 
@@ -28,15 +31,18 @@ SELECT Block_Id, BlockCode, Proposal_Code, Block_Name, BlockStatus, BlockStatusR
 
         def get_block_content(block_id):
             row = df[df["Block_Id"] == block_id]
-
-            status = df["BlockStatus"].tolist()[0]
+            if len(row) == 0:
+                raise GraphQLError(
+                    "There is no block with id {block_id}".format(block_id=block_id)
+                )
+            status = row["BlockStatus"].tolist()[0]
             if status.lower() == "not set":
                 status = None
             return BlockContent(
-                block_id=row["Block_Id"].tolist()[0],
+                id=row["Block_Id"].tolist()[0],
                 block_code=row["BlockCode"].tolist()[0],
                 proposal=row["Proposal_Code"].tolist()[0],
-                name=df["Block_Name"].tolist()[0],
+                name=row["Block_Name"].tolist()[0],
                 status=status,
                 status_reason=df["BlockStatusReason"].tolist()[0],
             )
