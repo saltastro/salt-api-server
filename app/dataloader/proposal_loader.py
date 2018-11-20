@@ -75,7 +75,6 @@ SELECT Proposal_Code, GROUP_CONCAT(BlockVisit_Id) AS BlockVisit_Ids
                 observations = [int(id) for id in block_visit_list[0].split(",")]
             else:
                 observations = []
-            print(observations)
             return ProposalContent(
                 proposal_code=proposal_code,
                 title=general_info["Title"].tolist()[0],
