@@ -34,25 +34,23 @@ SELECT Block_Id, BlockCode, Proposal_Code, Block_Name, BlockStatus, BlockStatusR
         """
         df = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
 
+        # collect the values
+        values = dict()
+        for _, row in df.iterrows():
+            status = row["BlockStatus"]
+            if status.lower() == "not set":
+                status = None
+            values[row['Block_Id']] = dict(id=row['Block_Id'], block_code=row['BlockCode'], proposal=row['Proposal_Code'], name=row['Block_Name'], status=status,
+                                           status_reason=row['BlockStatusReason'], semester=_SemesterContent(
+                                               year=row["Year"], semester=row["Semester"]),
+                                           )
+
         def get_block_content(block_id):
-            row = df[df["Block_Id"] == block_id]
-            if len(row) == 0:
+            block = values.get(block_id)
+            if not block:
                 raise GraphQLError(
                     "There is no block with id {block_id}".format(block_id=block_id)
                 )
-            status = row["BlockStatus"].tolist()[0]
-            if status.lower() == "not set":
-                status = None
-            return BlockContent(
-                id=row["Block_Id"].tolist()[0],
-                block_code=row["BlockCode"].tolist()[0],
-                proposal=row["Proposal_Code"].tolist()[0],
-                name=row["Block_Name"].tolist()[0],
-                status=status,
-                status_reason=df["BlockStatusReason"].tolist()[0],
-                semester=_SemesterContent(
-                    year=row["Year"].tolist()[0], semester=row["Semester"].tolist()[0]
-                ),
-            )
+            return BlockContent(**block)
 
         return [get_block_content(block_id) for block_id in block_ids]

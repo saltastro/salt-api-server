@@ -49,26 +49,19 @@ SELECT BlockVisit_Id, MIN(UTStart) AS Start
             sql_start, con=db.engine, params=dict(block_visit_ids=observation_ids)
         )
 
+        # collect the values
+        values = dict()
+        for _, row in df_visit.iterrows():
+            values[row['BlockVisit_Id']] = dict(block=int(row['Block_Id']), night=row['Date'], status=row['BlockVisitStatus'], rejection_reason=row["RejectedReason"], start=None)
+        for _, row in df_start.iterrows():
+            values[row['BlockVisit_Id']]['start'] = row['Start'].replace(tzinfo=pytz.UTC)
+
         def get_observation_content(observation_id):
-            row_visit = df_visit[df_visit["BlockVisit_Id"] == observation_id]
-            if len(row_visit) == 0:
-                raise GraphQLError(
-                    "There is no observation with id {observation_id}".format(
-                        observation_id=observation_id
-                    )
-                )
-            row_start = df_start[df_start["BlockVisit_Id"] == observation_id]
-            if len(row_start) > 0:
-                start = row_start["Start"].tolist()[0].replace(tzinfo=pytz.UTC)
-            else:
-                start = None
-            return ObservationContent(
-                block=int(row_visit["Block_Id"].tolist()[0]),
-                night=row_visit["Date"].tolist()[0],
-                start=start,
-                status=row_visit["BlockVisitStatus"].tolist()[0],
-                rejection_reason=row_visit["RejectedReason"].tolist()[0],
-            )
+            visit = values.get(observation_id)
+            if not visit:
+                raise GraphQLError('There is no observation with id {observation_id}'.format(observation_id=observation_id))
+
+            return ObservationContent(**visit)
 
         return [
             get_observation_content(observation_id)

@@ -30,6 +30,10 @@ SELECT Proposal_Code, Title
         df_general_info = pd.read_sql(
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
         )
+        values = dict()
+        for _, row in df_general_info.iterrows():
+            values[row['Proposal_Code']] = dict(proposal_code=row['Proposal_Code'], title=row['Title'],
+                                                blocks=set(), observations=set())
 
         # blocks
         sql = """
@@ -43,9 +47,8 @@ SELECT Proposal_Code, Block_Id
         df_blocks = pd.read_sql(
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
         )
-        blocks = {proposal_code: set() for proposal_code in proposal_codes}
         for _, row in df_blocks.iterrows():
-            blocks[row["Proposal_Code"]].add(row["Block_Id"])
+            values[row["Proposal_Code"]]['blocks'].add(row["Block_Id"])
 
         # observations (i.e. block visits)
         sql = """
@@ -58,27 +61,19 @@ SELECT Proposal_Code, BlockVisit_Id
         df_block_visits = pd.read_sql(
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
         )
-        block_visits = {proposal_code: set() for proposal_code in proposal_codes}
         for _, row in df_block_visits.iterrows():
-            block_visits[row["Proposal_Code"]].add(row["BlockVisit_Id"])
+            values[row["Proposal_Code"]]['observations'].add(row["BlockVisit_Id"])
 
         def proposal_content(proposal_code):
-            general_info = df_general_info[
-                df_general_info["Proposal_Code"] == proposal_code
-            ]
-            if len(general_info) == 0:
+            proposal = values.get(proposal_code)
+            if not proposal:
                 raise GraphQLError(
                     "There exists no proposal with proposal code {code}".format(
                         code=proposal_code
                     )
                 )
 
-            return ProposalContent(
-                proposal_code=proposal_code,
-                title=general_info["Title"].tolist()[0],
-                blocks=blocks[proposal_code],
-                observations=block_visits[proposal_code],
-            )
+            return ProposalContent(**proposal)
 
         # collect results
         proposals = [
