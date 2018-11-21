@@ -43,9 +43,9 @@ SELECT Proposal_Code, Block_Id
         df_blocks = pd.read_sql(
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
         )
-        blocks = {proposal_code:set() for proposal_code in proposal_codes}
+        blocks = {proposal_code: set() for proposal_code in proposal_codes}
         for _, row in df_blocks.iterrows():
-            blocks[row['Proposal_Code']].add(row['Block_Id'])
+            blocks[row["Proposal_Code"]].add(row["Block_Id"])
 
         # observations (i.e. block visits)
         sql = """
@@ -58,7 +58,7 @@ SELECT Proposal_Code, BlockVisit_Id
         df_block_visits = pd.read_sql(
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
         )
-        block_visits = {proposal_code:set() for proposal_code in proposal_codes}
+        block_visits = {proposal_code: set() for proposal_code in proposal_codes}
         for _, row in df_block_visits.iterrows():
             block_visits[row["Proposal_Code"]].add(row["BlockVisit_Id"])
 
@@ -67,7 +67,11 @@ SELECT Proposal_Code, BlockVisit_Id
                 df_general_info["Proposal_Code"] == proposal_code
             ]
             if len(general_info) == 0:
-                raise GraphQLError('There exists no proposal with proposal code {proposal_code}'.format(proposal_code=proposal_code))
+                raise GraphQLError(
+                    "There exists no proposal with proposal code {code}".format(
+                        code=proposal_code
+                    )
+                )
 
             return ProposalContent(
                 proposal_code=proposal_code,
