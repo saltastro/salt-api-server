@@ -267,9 +267,7 @@ class ObservationStatus(Enum):
 class Observation(Interface):
     night = NonNull(Date, description="The night when the observation was taken.")
 
-    start = NonNull(
-        DateTime, description="The datetime when the observation was started."
-    )
+    start = DateTime(description="The datetime when the observation was started.")
 
     status = NonNull(
         lambda: ObservationStatus, description="The status of the observation."

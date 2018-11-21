@@ -58,13 +58,10 @@ SELECT BlockVisit_Id, MIN(UTStart) AS Start
                     )
                 )
             row_start = df_start[df_start["BlockVisit_Id"] == observation_id]
-            if len(row_start) == 0:
-                raise GraphQLError(
-                    "There is no start time for the observation with id {observatioon_id}".format(
-                        observation_id=observation_id
-                    )
-                )
-            start = row_start["Start"].tolist()[0].replace(tzinfo=pytz.UTC)
+            if len(row_start) > 0:
+                start = row_start["Start"].tolist()[0].replace(tzinfo=pytz.UTC)
+            else:
+                start = None
             return ObservationContent(
                 block=int(row_visit["Block_Id"].tolist()[0]),
                 night=row_visit["Date"].tolist()[0],
