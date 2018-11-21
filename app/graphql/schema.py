@@ -44,6 +44,11 @@ class Query(ObjectType):
         password=NonNull(String, description="Password"),
     )
 
+    proposals = Field(
+        lambda: List(Proposal),
+        description="A list of SALT proposals."
+    )
+
     proposal = Field(
         lambda: Proposal,
         description="A SALT proposal.",
@@ -66,6 +71,23 @@ class Query(ObjectType):
         # encode and return the user id
         token = encode({"user_id": df["PiptUser_Id"][0].item()})
         return _TokenContent(token=token)
+
+    def resolve_proposals(self, info):
+        # get all proposals (irrespective of user permissions)
+        sql = """SELECT DISTINCT Proposal_Code
+                        FROM ProposalCode AS pc
+                        JOIN Proposal AS p ON pc.ProposalCode_Id = p.ProposalCode_Id
+                        WHERE p.Current=1
+                              AND pc.Proposal_Code LIKE '2018-1-DDT-%%'
+                        """
+        df = pd.read_sql(sql, con=db.engine, params=dict())
+
+        all_proposal_codes = df['Proposal_Code'].tolist()
+
+        # only retain proposals the user actually may view
+        proposal_codes = [proposal_code for proposal_code in all_proposal_codes if g.user.may_view_proposal(proposal_code)]
+
+        return loaders['proposal_loader'].load_many(proposal_codes)
 
     def resolve_proposal(self, info, proposal_code):
         # sanity check: may the user view the proposal?
