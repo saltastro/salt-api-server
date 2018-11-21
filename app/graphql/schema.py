@@ -37,7 +37,7 @@ class Query(ObjectType):
     auth_token = Field(
         lambda: AuthToken,
         description="Request an authentication token.",
-        username=NonNull(String, description="username"),
+        username=NonNull(String, description="Username"),
         password=NonNull(String, description="Password"),
     )
 
