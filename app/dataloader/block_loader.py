@@ -8,7 +8,8 @@ from app.util import _SemesterContent
 
 
 BlockContent = namedtuple(
-    "BlockContent", ["id", "block_code", "proposal", "name", "status", "status_reason", 'semester']
+    "BlockContent",
+    ["id", "block_code", "proposal", "name", "status", "status_reason", "semester"],
 )
 
 
@@ -49,7 +50,9 @@ SELECT Block_Id, BlockCode, Proposal_Code, Block_Name, BlockStatus, BlockStatusR
                 name=row["Block_Name"].tolist()[0],
                 status=status,
                 status_reason=df["BlockStatusReason"].tolist()[0],
-                semester=_SemesterContent(year=row['Year'].tolist()[0], semester=row['Semester'].tolist()[0])
+                semester=_SemesterContent(
+                    year=row["Year"].tolist()[0], semester=row["Semester"].tolist()[0]
+                ),
             )
 
         return [get_block_content(block_id) for block_id in block_ids]

@@ -33,56 +33,51 @@ SELECT Proposal_Code, Title
 
         # blocks
         sql = """
-SELECT Proposal_Code, GROUP_CONCAT(Block_Id) AS Block_Ids
+SELECT Proposal_Code, Block_Id
        FROM Block AS b
        JOIN ProposalCode AS pc ON b.ProposalCode_Id = pc.ProposalCode_Id
        JOIN BlockStatus AS bs ON b.BlockStatus_Id = bs.BlockStatus_Id
        WHERE Proposal_Code IN %(proposal_codes)s
              AND BlockStatus IN ('Active', 'Completed', 'On Hold')
-       GROUP BY pc.ProposalCode_Id
-       """
+        """
         df_blocks = pd.read_sql(
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
         )
+        blocks = {proposal_code: set() for proposal_code in proposal_codes}
+        for _, row in df_blocks.iterrows():
+            blocks[row["Proposal_Code"]].add(row["Block_Id"])
 
         # observations (i.e. block visits)
         sql = """
-SELECT Proposal_Code, GROUP_CONCAT(BlockVisit_Id) AS BlockVisit_Ids
+SELECT Proposal_Code, BlockVisit_Id
        FROM BlockVisit AS bv
        JOIN Block AS b ON bv.Block_Id = b.Block_Id
        JOIN ProposalCode AS pc ON b.ProposalCode_Id = pc.ProposalCode_Id
        WHERE Proposal_Code IN %(proposal_codes)s
-       GROUP BY pc.ProposalCode_Id
         """
         df_block_visits = pd.read_sql(
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
         )
+        block_visits = {proposal_code: set() for proposal_code in proposal_codes}
+        for _, row in df_block_visits.iterrows():
+            block_visits[row["Proposal_Code"]].add(row["BlockVisit_Id"])
 
         def proposal_content(proposal_code):
             general_info = df_general_info[
                 df_general_info["Proposal_Code"] == proposal_code
             ]
             if len(general_info) == 0:
-                raise GraphQLError('There exists no proposal with proposal code {proposal_code}'.format(proposal_code=proposal_code))
-            block_data = df_blocks[df_blocks["Proposal_Code"] == proposal_code]
-            block_id_list = block_data["Block_Ids"].tolist()
-            if len(block_id_list) > 0:
-                blocks = [int(id) for id in block_id_list[0].split(",")]
-            else:
-                blocks = []
-            block_visits = df_block_visits[
-                df_block_visits["Proposal_Code"] == proposal_code
-            ]
-            block_visit_list = block_visits["BlockVisit_Ids"].tolist()
-            if len(block_visit_list) > 0:
-                observations = [int(id) for id in block_visit_list[0].split(",")]
-            else:
-                observations = []
+                raise GraphQLError(
+                    "There exists no proposal with proposal code {code}".format(
+                        code=proposal_code
+                    )
+                )
+
             return ProposalContent(
                 proposal_code=proposal_code,
                 title=general_info["Title"].tolist()[0],
-                blocks=blocks,
-                observations=observations,
+                blocks=blocks[proposal_code],
+                observations=block_visits[proposal_code],
             )
 
         # collect results
