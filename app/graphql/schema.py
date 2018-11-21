@@ -1,4 +1,5 @@
 from collections import namedtuple
+import re
 import pandas as pd
 from sqlalchemy import text
 from flask import g, request
@@ -15,12 +16,75 @@ from graphene import (
     ObjectType,
     String,
 )
-from graphene.types import Date, DateTime
+from graphene.types import Date, DateTime, Scalar
 from graphene_file_upload.scalars import Upload
 from graphql import GraphQLError
+from graphql.language import ast
 from app import db
 from app.auth import encode
 from app import loaders
+from app.util import _SemesterContent
+
+
+# semester
+
+
+class Semester(Scalar):
+    """A proposal semester, such as \"2018-2\" or \"2019-1\"."""
+
+    SEMESTER_REGEX = re.compile(r"^\d{4}-[12]$")
+
+    @staticmethod
+    def serialize(s):
+        assert isinstance(
+            s, _SemesterContent
+        ), "Received incompatible semester: {semester}".format(semester=repr(s))
+        return "{year}-{semester}".format(year=s.year, semester=s.semester)
+
+    @classmethod
+    def parse_literal(cls, node):
+        if isinstance(node, ast.StringValue):
+            return cls.parse_value(node.value)
+        raise GraphQLError(
+            'A semester must be a string of the form "yyyy-s" (e.g., "2018-2"'
+        )
+
+    @classmethod
+    def parse_value(cls, value):
+        # sanity check: the value is of the form yyyy-s
+        if not cls.SEMESTER_REGEX.match(value):
+            raise GraphQLError(
+                'A semester must be of the form "yyyy-s" (e.g., "2018-2")'
+            )
+
+        year, semester = value.split("-")
+        return _SemesterContent(year=year, semester=semester)
+
+
+# partner
+
+
+class PartnerCode(Enum):
+    AMNH = "AMNH"
+    CMU = "CMU"
+    COM = "COM"
+    DC = "DC"
+    DDT = "DDT"
+    DUR = "DUR"
+    ENG = "ENG"
+    GU = "GU"
+    HET = "HET"
+    IUCAA = "IUCAA"
+    KEY = "KEY"
+    OTH = "OTH"
+    POL = "POL"
+    RSA = "RSA"
+    RU = "RU"
+    SVP = "SVP"
+    UC = "UC"
+    UKSC = "UKSC"
+    UNC = "UNC"
+    UW = "UW"
 
 
 # root query
@@ -37,8 +101,21 @@ class Query(ObjectType):
     auth_token = Field(
         lambda: AuthToken,
         description="Request an authentication token.",
-        username=NonNull(String, description="username"),
+        username=NonNull(String, description="Username"),
         password=NonNull(String, description="Password"),
+    )
+
+    proposals = Field(
+        lambda: List(Proposal),
+        description="A list of SALT proposals.",
+        partner_code=PartnerCode(
+            description="The partner whose proposals should be returned.",
+            required=False,
+        ),
+        semester=Semester(
+            description="The semester whose proposals should be returned.",
+            required=False,
+        ),
     )
 
     proposal = Field(
@@ -63,6 +140,45 @@ class Query(ObjectType):
         # encode and return the user id
         token = encode({"user_id": df["PiptUser_Id"][0].item()})
         return _TokenContent(token=token)
+
+    def resolve_proposals(self, info, partner_code=None, semester=None):
+        # get the filter conditions
+        params = dict()
+        filters = ["p.Current=1"]
+        if partner_code:
+            filters.append("partner.Partner_Code=%(partner_code)s")
+            params["partner_code"] = partner_code
+        if semester:
+            filters.append("(s.Year=%(year)s AND s.Semester=%(semester)s)")
+            params["year"] = semester.year
+            params["semester"] = semester.semester
+
+        # get all proposals (irrespective of user permissions)
+        sql = """
+SELECT DISTINCT Proposal_Code
+       FROM ProposalCode AS pc
+       JOIN Proposal AS p ON pc.ProposalCode_Id = p.ProposalCode_Id
+       JOIN Semester AS s ON p.Semester_Id = s.Semester_Id
+       JOIN ProposalInvestigator AS pi ON pc.ProposalCode_Id = pi.ProposalCode_Id
+       JOIN Investigator AS i ON pi.Investigator_Id = i.Investigator_Id
+       JOIN Institute AS institute ON i.Institute_Id = institute.Institute_Id
+       JOIN Partner AS partner ON institute.Partner_Id = partner.Partner_Id
+       WHERE {where}
+""".format(
+            where=" AND ".join(filters)
+        )
+        df = pd.read_sql(sql, con=db.engine, params=params)
+
+        all_proposal_codes = df["Proposal_Code"].tolist()
+
+        # only retain proposals the user actually may view
+        proposal_codes = [
+            proposal_code
+            for proposal_code in all_proposal_codes
+            if g.user.may_view_proposal(proposal_code)
+        ]
+
+        return loaders["proposal_loader"].load_many(proposal_codes)
 
     def resolve_proposal(self, info, proposal_code):
         # sanity check: may the user view the proposal?
@@ -176,6 +292,10 @@ class Block(ObjectType):
         description="The reason why the block has the status it has."
     )
 
+    semester = NonNull(
+        lambda: Semester, description="The semester to which this block belongs."
+    )
+
     @property
     def description(self):
         return "THe smallest schedulable unit in a proposal."
@@ -233,9 +353,7 @@ class ObservationStatus(Enum):
 class Observation(Interface):
     night = NonNull(Date, description="The night when the observation was taken.")
 
-    start = NonNull(
-        DateTime, description="The datetime when the observation was started."
-    )
+    start = DateTime(description="The datetime when the observation was started.")
 
     status = NonNull(
         lambda: ObservationStatus, description="The status of the observation."
