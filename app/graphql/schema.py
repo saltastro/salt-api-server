@@ -1,4 +1,5 @@
 from collections import namedtuple
+import re
 import pandas as pd
 from sqlalchemy import text
 from flask import g, request
@@ -15,12 +16,14 @@ from graphene import (
     ObjectType,
     String,
 )
-from graphene.types import Date, DateTime
+from graphene.types import Date, DateTime, Scalar
 from graphene_file_upload.scalars import Upload
 from graphql import GraphQLError
+from graphql.language import ast
 from app import db
 from app.auth import encode
 from app import loaders
+from app.util import _SemesterContent
 
 
 # root query
@@ -91,6 +94,35 @@ form "Token {token}", where {token} is the JWT token."""  # noqa
 
     def resolve_token(self, info):
         return self.token
+
+
+# semester
+
+
+class Semester(Scalar):
+    """A proposal semester, such as \"2018-2\" or \"2019-1\"."""
+
+    SEMESTER_REGEX = re.compile(r'^\d{4}-[12]$')
+
+    @staticmethod
+    def serialize(s):
+        assert isinstance(s, _SemesterContent), 'Received incompatible semester: {semester}'.format(semester=repr(s))
+        return '{year}-{semester}'.format(year=s.year, semester=s.semester)
+
+    @classmethod
+    def parse_literal(cls, node):
+        if isinstance(node, ast.StringValue):
+            return cls.parse_value(node.value)
+        raise GraphQLError('A semester must be a string of the form \"yyyy-s\" (e.g., \"2018-2\"')
+
+    @classmethod
+    def parse_value(cls, value):
+        # sanity check: the value is of the form yyyy-s
+        if not cls.SEMESTER_REGEX.match(value):
+            raise GraphQLError('A semester must be of the form \"yyyy-s\" (e.g., \"2018-2\")')
+
+        year, semester = value.split('-')
+        return _SemesterContent(year=year, semester=semester)
 
 
 # proposal
@@ -175,6 +207,8 @@ class Block(ObjectType):
     status_reason = String(
         description="The reason why the block has the status it has."
     )
+
+    semester = NonNull(lambda: Semester, description='The semester to which this block belongs.')
 
     @property
     def description(self):

@@ -2,6 +2,7 @@ from collections import namedtuple
 import pandas as pd
 from promise import Promise
 from promise.dataloader import DataLoader
+from graphql import GraphQLError
 from app import db
 
 
@@ -61,6 +62,8 @@ SELECT Proposal_Code, GROUP_CONCAT(BlockVisit_Id) AS BlockVisit_Ids
             general_info = df_general_info[
                 df_general_info["Proposal_Code"] == proposal_code
             ]
+            if len(general_info) == 0:
+                raise GraphQLError('There exists no proposal with proposal code {proposal_code}'.format(proposal_code=proposal_code))
             block_data = df_blocks[df_blocks["Proposal_Code"] == proposal_code]
             block_id_list = block_data["Block_Ids"].tolist()
             if len(block_id_list) > 0:
