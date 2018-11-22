@@ -4,12 +4,14 @@ from promise import Promise
 from promise.dataloader import DataLoader
 from graphql import GraphQLError
 from app import db
+from app.util import _SemesterContent
 
 
 ProposalContent = namedtuple(
-    "ProposalContent", ["proposal_code", "title", "blocks", "observations"]
+    "ProposalContent", ["proposal_code", "title", "blocks", "observations", "time_allocations"]
 )
 
+TimeAllocationContent = namedtuple('TimeAllocation', ['priority', 'semester', 'partner_code', 'amount'])
 
 class ProposalLoader(DataLoader):
     def __init__(self):
@@ -33,7 +35,8 @@ SELECT Proposal_Code, Title
         values = dict()
         for _, row in df_general_info.iterrows():
             values[row['Proposal_Code']] = dict(proposal_code=row['Proposal_Code'], title=row['Title'],
-                                                blocks=set(), observations=set())
+                                                blocks=set(), observations=set(),
+                                                time_allocations=set())
 
         # blocks
         sql = """
@@ -63,6 +66,21 @@ SELECT Proposal_Code, BlockVisit_Id
         )
         for _, row in df_block_visits.iterrows():
             values[row["Proposal_Code"]]['observations'].add(row["BlockVisit_Id"])
+
+        # time allocations
+        sql = """
+SELECT Proposal_Code, Priority, Year, Semester, Partner_Code, TimeAlloc
+       FROM PriorityAlloc AS pa
+       JOIN MultiPartner AS mp ON pa.MultiPartner_Id = mp.MultiPartner_Id
+       JOIN Partner AS p ON mp.Partner_Id = p.Partner_Id
+       JOIN Semester ON mp.Semester_Id = Semester.Semester_Id
+       JOIN ProposalCode ON mp.ProposalCode_Id = ProposalCode.ProposalCode_Id
+       WHERE Proposal_Code IN ('2018-2-MLT-005') AND TimeAlloc>0
+"""
+        df_time_alloc = pd.read_sql(sql, con=db.engine, params=dict(proposal_codes=proposal_codes))
+        for _, row in df_time_alloc.iterrows():
+            semester = _SemesterContent(year=row['Year'], semester=row['Semester'])
+            values[row['Proposal_Code']]['time_allocations'].add(TimeAllocationContent(priority=row['Priority'], semester=semester, partner_code=row['Partner_Code'], amount=row['TimeAlloc']))
 
         def proposal_content(proposal_code):
             proposal = values.get(proposal_code)

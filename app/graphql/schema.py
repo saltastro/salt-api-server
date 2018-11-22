@@ -226,6 +226,8 @@ class Proposal(ObjectType):
         description="The observations for the proposal",
     )
 
+    time_allocations = List(NonNull(lambda: TimeAllocation), description="The time allocations.")
+
     def resolve_proposal_code(self, info):
         return self.proposal_code
 
@@ -402,6 +404,22 @@ class ProposalObservation(ObjectType):
 
     def resolve_block(self, info):
         return loaders["block_loader"].load(self.block)
+
+
+# time allocation
+
+
+class TimeAllocation(ObjectType):
+    priority = NonNull(Int, description="The priority.")
+
+    semester = NonNull(lambda: Semester, description="The semester to which the time has been allocated.")
+
+    partner_code = NonNull(lambda: PartnerCode, description="The partber who has made the time allocation.")
+
+    amount = NonNull(Int, description="The amount of allocatedv time, in seconds.")
+
+
+# mutations
 
 
 class PutBlockOnHold(Mutation):
