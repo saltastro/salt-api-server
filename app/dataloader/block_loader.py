@@ -40,10 +40,15 @@ SELECT Block_Id, BlockCode, Proposal_Code, Block_Name, BlockStatus, BlockStatusR
             status = row["BlockStatus"]
             if status.lower() == "not set":
                 status = None
-            values[row['Block_Id']] = dict(id=row['Block_Id'], block_code=row['BlockCode'], proposal=row['Proposal_Code'], name=row['Block_Name'], status=status,
-                                           status_reason=row['BlockStatusReason'], semester=_SemesterContent(
-                                               year=row["Year"], semester=row["Semester"]),
-                                           )
+            values[row["Block_Id"]] = dict(
+                id=row["Block_Id"],
+                block_code=row["BlockCode"],
+                proposal=row["Proposal_Code"],
+                name=row["Block_Name"],
+                status=status,
+                status_reason=row["BlockStatusReason"],
+                semester=_SemesterContent(year=row["Year"], semester=row["Semester"]),
+            )
 
         def get_block_content(block_id):
             block = values.get(block_id)

@@ -23,7 +23,12 @@ from graphql.language import ast
 from app import db
 from app.auth import encode
 from app import loaders
-from app.util import _SemesterContent
+from app.util import (
+    _SemesterContent,
+    ProposalInactiveReason,
+    ProposalStatus,
+    ProposalType,
+)
 
 
 # semester
@@ -219,11 +224,25 @@ class Proposal(ObjectType):
 
     title = NonNull(String, description="The proposal title.")
 
+    proposal_type = NonNull(lambda: ProposalType, description="The proposal type.")
+
+    status = NonNull(lambda: ProposalStatus, description="The proposal status.")
+
+    status_comment = String(description="A comment explaining the proposal status.")
+
+    inactive_reason = ProposalInactiveReason(
+        description="The reason why the proposal is inactive."
+    )
+
     blocks = List(NonNull(lambda: Block), description="The blocks in the proposal.")
 
     observations = List(
         NonNull(lambda: ProposalObservation),
         description="The observations for the proposal",
+    )
+
+    time_allocations = List(
+        NonNull(lambda: TimeAllocation), description="The time allocations."
     )
 
     def resolve_proposal_code(self, info):
@@ -402,6 +421,27 @@ class ProposalObservation(ObjectType):
 
     def resolve_block(self, info):
         return loaders["block_loader"].load(self.block)
+
+
+# time allocation
+
+
+class TimeAllocation(ObjectType):
+    priority = NonNull(Int, description="The priority.")
+
+    semester = NonNull(
+        lambda: Semester,
+        description="The semester to which the time has been allocated.",
+    )
+
+    partner_code = NonNull(
+        lambda: PartnerCode, description="The partber who has made the time allocation."
+    )
+
+    amount = NonNull(Int, description="The amount of allocatedv time, in seconds.")
+
+
+# mutations
 
 
 class PutBlockOnHold(Mutation):

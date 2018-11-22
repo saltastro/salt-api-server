@@ -52,14 +52,26 @@ SELECT BlockVisit_Id, MIN(UTStart) AS Start
         # collect the values
         values = dict()
         for _, row in df_visit.iterrows():
-            values[row['BlockVisit_Id']] = dict(block=int(row['Block_Id']), night=row['Date'], status=row['BlockVisitStatus'], rejection_reason=row["RejectedReason"], start=None)
+            values[row["BlockVisit_Id"]] = dict(
+                block=int(row["Block_Id"]),
+                night=row["Date"],
+                status=row["BlockVisitStatus"],
+                rejection_reason=row["RejectedReason"],
+                start=None,
+            )
         for _, row in df_start.iterrows():
-            values[row['BlockVisit_Id']]['start'] = row['Start'].replace(tzinfo=pytz.UTC)
+            values[row["BlockVisit_Id"]]["start"] = row["Start"].replace(
+                tzinfo=pytz.UTC
+            )
 
         def get_observation_content(observation_id):
             visit = values.get(observation_id)
             if not visit:
-                raise GraphQLError('There is no observation with id {observation_id}'.format(observation_id=observation_id))
+                raise GraphQLError(
+                    "There is no observation with id {observation_id}".format(
+                        observation_id=observation_id
+                    )
+                )
 
             return ObservationContent(**visit)
 
