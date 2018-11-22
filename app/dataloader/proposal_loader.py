@@ -8,10 +8,14 @@ from app.util import _SemesterContent
 
 
 ProposalContent = namedtuple(
-    "ProposalContent", ["proposal_code", "title", "blocks", "observations", "time_allocations"]
+    "ProposalContent",
+    ["proposal_code", "title", "blocks", "observations", "time_allocations"],
 )
 
-TimeAllocationContent = namedtuple('TimeAllocation', ['priority', 'semester', 'partner_code', 'amount'])
+TimeAllocationContent = namedtuple(
+    "TimeAllocation", ["priority", "semester", "partner_code", "amount"]
+)
+
 
 class ProposalLoader(DataLoader):
     def __init__(self):
@@ -34,9 +38,13 @@ SELECT Proposal_Code, Title
         )
         values = dict()
         for _, row in df_general_info.iterrows():
-            values[row['Proposal_Code']] = dict(proposal_code=row['Proposal_Code'], title=row['Title'],
-                                                blocks=set(), observations=set(),
-                                                time_allocations=set())
+            values[row["Proposal_Code"]] = dict(
+                proposal_code=row["Proposal_Code"],
+                title=row["Title"],
+                blocks=set(),
+                observations=set(),
+                time_allocations=set(),
+            )
 
         # blocks
         sql = """
@@ -51,7 +59,7 @@ SELECT Proposal_Code, Block_Id
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
         )
         for _, row in df_blocks.iterrows():
-            values[row["Proposal_Code"]]['blocks'].add(row["Block_Id"])
+            values[row["Proposal_Code"]]["blocks"].add(row["Block_Id"])
 
         # observations (i.e. block visits)
         sql = """
@@ -65,7 +73,7 @@ SELECT Proposal_Code, BlockVisit_Id
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
         )
         for _, row in df_block_visits.iterrows():
-            values[row["Proposal_Code"]]['observations'].add(row["BlockVisit_Id"])
+            values[row["Proposal_Code"]]["observations"].add(row["BlockVisit_Id"])
 
         # time allocations
         sql = """
@@ -77,10 +85,19 @@ SELECT Proposal_Code, Priority, Year, Semester, Partner_Code, TimeAlloc
        JOIN ProposalCode ON mp.ProposalCode_Id = ProposalCode.ProposalCode_Id
        WHERE Proposal_Code IN ('2018-2-MLT-005') AND TimeAlloc>0
 """
-        df_time_alloc = pd.read_sql(sql, con=db.engine, params=dict(proposal_codes=proposal_codes))
+        df_time_alloc = pd.read_sql(
+            sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
+        )
         for _, row in df_time_alloc.iterrows():
-            semester = _SemesterContent(year=row['Year'], semester=row['Semester'])
-            values[row['Proposal_Code']]['time_allocations'].add(TimeAllocationContent(priority=row['Priority'], semester=semester, partner_code=row['Partner_Code'], amount=row['TimeAlloc']))
+            semester = _SemesterContent(year=row["Year"], semester=row["Semester"])
+            values[row["Proposal_Code"]]["time_allocations"].add(
+                TimeAllocationContent(
+                    priority=row["Priority"],
+                    semester=semester,
+                    partner_code=row["Partner_Code"],
+                    amount=row["TimeAlloc"],
+                )
+            )
 
         def proposal_content(proposal_code):
             proposal = values.get(proposal_code)
