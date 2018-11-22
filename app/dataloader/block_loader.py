@@ -9,7 +9,17 @@ from app.util import _SemesterContent
 
 BlockContent = namedtuple(
     "BlockContent",
-    ["id", "block_code", "proposal", "name", "status", "status_reason", "semester"],
+    [
+        "id",
+        "block_code",
+        "proposal",
+        "name",
+        "status",
+        "status_reason",
+        "semester",
+        "length",
+        "priority",
+    ],
 )
 
 
@@ -23,7 +33,7 @@ class BlockLoader(DataLoader):
     def get_blocks(self, block_ids):
         sql = """
 SELECT Block_Id, BlockCode, Proposal_Code, Block_Name, BlockStatus, BlockStatusReason,
-       Year, Semester
+       Year, Semester, ObsTime, Priority
        FROM Block AS b
        JOIN BlockCode AS bc ON b.BlockCode_Id = bc.BlockCode_Id
        JOIN BlockStatus AS bs ON b.BlockStatus_Id = bs.BlockStatus_Id
@@ -48,6 +58,8 @@ SELECT Block_Id, BlockCode, Proposal_Code, Block_Name, BlockStatus, BlockStatusR
                 status=status,
                 status_reason=row["BlockStatusReason"],
                 semester=_SemesterContent(year=row["Year"], semester=row["Semester"]),
+                length=row["ObsTime"],
+                priority=row["Priority"],
             )
 
         def get_block_content(block_id):

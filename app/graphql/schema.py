@@ -315,6 +315,10 @@ class Block(ObjectType):
         lambda: Semester, description="The semester to which this block belongs."
     )
 
+    length = NonNull(Int, description="The length of the block, per visit, in seconds.")
+
+    priority = NonNull(Int, description="The priority of the block.")
+
     @property
     def description(self):
         return "THe smallest schedulable unit in a proposal."
