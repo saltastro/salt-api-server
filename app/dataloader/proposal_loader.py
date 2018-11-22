@@ -4,10 +4,31 @@ from promise import Promise
 from promise.dataloader import DataLoader
 from graphql import GraphQLError
 from app import db
+from app.util import (
+    _SemesterContent,
+    ProposalInactiveReason,
+    ProposalStatus,
+    ProposalType,
+)
 
 
 ProposalContent = namedtuple(
-    "ProposalContent", ["proposal_code", "title", "blocks", "observations"]
+    "ProposalContent",
+    [
+        "proposal_code",
+        "title",
+        "proposal_type",
+        "status",
+        "status_comment",
+        "inactive_reason",
+        "blocks",
+        "observations",
+        "time_allocations",
+    ],
+)
+
+TimeAllocationContent = namedtuple(
+    "TimeAllocation", ["priority", "semester", "partner_code", "amount"]
 )
 
 
@@ -21,15 +42,33 @@ class ProposalLoader(DataLoader):
     def get_proposals(self, proposal_codes):
         # general proposal info
         sql = """
-SELECT Proposal_Code, Title
+SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
        FROM Proposal AS p
        JOIN ProposalCode AS pc ON p.ProposalCode_Id = pc.ProposalCode_Id
        JOIN ProposalText AS pt ON p.ProposalCode_Id = pt.ProposalCode_Id
+       JOIN ProposalGeneralInfo AS pgi ON p.ProposalCode_Id = pgi.ProposalCode_Id
+       JOIN ProposalStatus AS ps ON pgi.ProposalStatus_Id = ps.ProposalStatus_Id
+       JOIN ProposalType AS type ON pgi.ProposalType_Id = type.ProposalType_Id
+       JOIN ProposalInactiveReason AS pir
+                 ON pgi.ProposalInactiveReason_Id = pir.ProposalInactiveReason_Id
        WHERE Current=1 AND Proposal_Code IN %(proposal_codes)s
        """
         df_general_info = pd.read_sql(
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
         )
+        values = dict()
+        for _, row in df_general_info.iterrows():
+            values[row["Proposal_Code"]] = dict(
+                proposal_code=row["Proposal_Code"],
+                title=row["Title"],
+                time_allocations=set(),
+                proposal_type=ProposalType.get(row["ProposalType"]),
+                status=ProposalStatus.get(row["Status"]),
+                status_comment=row["StatusComment"],
+                inactive_reason=ProposalInactiveReason.get(row["InactiveReason"]),
+                blocks=set(),
+                observations=set(),
+            )
 
         # blocks
         sql = """
@@ -43,9 +82,8 @@ SELECT Proposal_Code, Block_Id
         df_blocks = pd.read_sql(
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
         )
-        blocks = {proposal_code: set() for proposal_code in proposal_codes}
         for _, row in df_blocks.iterrows():
-            blocks[row["Proposal_Code"]].add(row["Block_Id"])
+            values[row["Proposal_Code"]]["blocks"].add(row["Block_Id"])
 
         # observations (i.e. block visits)
         sql = """
@@ -58,27 +96,43 @@ SELECT Proposal_Code, BlockVisit_Id
         df_block_visits = pd.read_sql(
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
         )
-        block_visits = {proposal_code: set() for proposal_code in proposal_codes}
         for _, row in df_block_visits.iterrows():
-            block_visits[row["Proposal_Code"]].add(row["BlockVisit_Id"])
+            values[row["Proposal_Code"]]["observations"].add(row["BlockVisit_Id"])
+
+        # time allocations
+        sql = """
+SELECT Proposal_Code, Priority, Year, Semester, Partner_Code, TimeAlloc
+       FROM PriorityAlloc AS pa
+       JOIN MultiPartner AS mp ON pa.MultiPartner_Id = mp.MultiPartner_Id
+       JOIN Partner AS p ON mp.Partner_Id = p.Partner_Id
+       JOIN Semester ON mp.Semester_Id = Semester.Semester_Id
+       JOIN ProposalCode ON mp.ProposalCode_Id = ProposalCode.ProposalCode_Id
+       WHERE Proposal_Code IN ('2018-2-MLT-005') AND TimeAlloc>0
+"""
+        df_time_alloc = pd.read_sql(
+            sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
+        )
+        for _, row in df_time_alloc.iterrows():
+            semester = _SemesterContent(year=row["Year"], semester=row["Semester"])
+            values[row["Proposal_Code"]]["time_allocations"].add(
+                TimeAllocationContent(
+                    priority=row["Priority"],
+                    semester=semester,
+                    partner_code=row["Partner_Code"],
+                    amount=row["TimeAlloc"],
+                )
+            )
 
         def proposal_content(proposal_code):
-            general_info = df_general_info[
-                df_general_info["Proposal_Code"] == proposal_code
-            ]
-            if len(general_info) == 0:
+            proposal = values.get(proposal_code)
+            if not proposal:
                 raise GraphQLError(
                     "There exists no proposal with proposal code {code}".format(
                         code=proposal_code
                     )
                 )
 
-            return ProposalContent(
-                proposal_code=proposal_code,
-                title=general_info["Title"].tolist()[0],
-                blocks=blocks[proposal_code],
-                observations=block_visits[proposal_code],
-            )
+            return ProposalContent(**proposal)
 
         # collect results
         proposals = [
