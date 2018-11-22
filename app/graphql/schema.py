@@ -23,7 +23,12 @@ from graphql.language import ast
 from app import db
 from app.auth import encode
 from app import loaders
-from app.util import _SemesterContent
+from app.util import (
+    _SemesterContent,
+    ProposalInactiveReason,
+    ProposalStatus,
+    ProposalType,
+)
 
 
 # semester
@@ -218,6 +223,16 @@ class Proposal(ObjectType):
     )
 
     title = NonNull(String, description="The proposal title.")
+
+    proposal_type = NonNull(lambda: ProposalType, description="The proposal type.")
+
+    status = NonNull(lambda: ProposalStatus, description="The proposal status.")
+
+    status_comment = String(description="A comment explaining the proposal status.")
+
+    inactive_reason = ProposalInactiveReason(
+        description="The reason why the proposal is inactive."
+    )
 
     blocks = List(NonNull(lambda: Block), description="The blocks in the proposal.")
 

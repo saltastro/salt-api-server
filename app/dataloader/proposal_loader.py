@@ -4,12 +4,27 @@ from promise import Promise
 from promise.dataloader import DataLoader
 from graphql import GraphQLError
 from app import db
-from app.util import _SemesterContent
+from app.util import (
+    _SemesterContent,
+    ProposalInactiveReason,
+    ProposalStatus,
+    ProposalType,
+)
 
 
 ProposalContent = namedtuple(
     "ProposalContent",
-    ["proposal_code", "title", "blocks", "observations", "time_allocations"],
+    [
+        "proposal_code",
+        "title",
+        "proposal_type",
+        "status",
+        "status_comment",
+        "inactive_reason",
+        "blocks",
+        "observations",
+        "time_allocations",
+    ],
 )
 
 TimeAllocationContent = namedtuple(
@@ -27,10 +42,15 @@ class ProposalLoader(DataLoader):
     def get_proposals(self, proposal_codes):
         # general proposal info
         sql = """
-SELECT Proposal_Code, Title
+SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
        FROM Proposal AS p
        JOIN ProposalCode AS pc ON p.ProposalCode_Id = pc.ProposalCode_Id
        JOIN ProposalText AS pt ON p.ProposalCode_Id = pt.ProposalCode_Id
+       JOIN ProposalGeneralInfo AS pgi ON p.ProposalCode_Id = pgi.ProposalCode_Id
+       JOIN ProposalStatus AS ps ON pgi.ProposalStatus_Id = ps.ProposalStatus_Id
+       JOIN ProposalType AS type ON pgi.ProposalType_Id = type.ProposalType_Id
+       JOIN ProposalInactiveReason AS pir
+                 ON pgi.ProposalInactiveReason_Id = pir.ProposalInactiveReason_Id
        WHERE Current=1 AND Proposal_Code IN %(proposal_codes)s
        """
         df_general_info = pd.read_sql(
@@ -41,9 +61,13 @@ SELECT Proposal_Code, Title
             values[row["Proposal_Code"]] = dict(
                 proposal_code=row["Proposal_Code"],
                 title=row["Title"],
+                time_allocations=set(),
+                proposal_type=ProposalType.get(row["ProposalType"]),
+                status=ProposalStatus.get(row["Status"]),
+                status_comment=row["StatusComment"],
+                inactive_reason=ProposalInactiveReason.get(row["InactiveReason"]),
                 blocks=set(),
                 observations=set(),
-                time_allocations=set(),
             )
 
         # blocks
