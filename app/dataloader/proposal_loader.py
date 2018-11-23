@@ -58,7 +58,11 @@ SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
         )
         values = dict()
         for _, row in df_general_info.iterrows():
-            inactive_reason = ProposalInactiveReason.get(row["InactiveReason"]) if row["InactiveReason"] else None
+            inactive_reason = (
+                ProposalInactiveReason.get(row["InactiveReason"])
+                if row["InactiveReason"]
+                else None
+            )
             values[row["Proposal_Code"]] = dict(
                 proposal_code=row["Proposal_Code"],
                 title=row["Title"],
@@ -70,7 +74,7 @@ SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
                 blocks=set(),
                 observations=set(),
             )
-        print('PSSSED!', values)
+        print("PSSSED!", values)
 
         # blocks
         sql = """
@@ -86,7 +90,7 @@ SELECT Proposal_Code, Block_Id
         )
         for _, row in df_blocks.iterrows():
             values[row["Proposal_Code"]]["blocks"].add(row["Block_Id"])
-        print('PSSSED! 2')
+        print("PSSSED! 2")
 
         # observations (i.e. block visits)
         sql = """
@@ -101,7 +105,7 @@ SELECT Proposal_Code, BlockVisit_Id
         )
         for _, row in df_block_visits.iterrows():
             values[row["Proposal_Code"]]["observations"].add(row["BlockVisit_Id"])
-        print('PSSSED! 3')
+        print("PSSSED! 3")
 
         # time allocations
         sql = """
@@ -126,7 +130,7 @@ SELECT Proposal_Code, Priority, Year, Semester, Partner_Code, TimeAlloc
                     amount=row["TimeAlloc"],
                 )
             )
-        print('PSSSED! 4')
+        print("PSSSED! 4")
 
         def proposal_content(proposal_code):
             proposal = values.get(proposal_code)
