@@ -4,7 +4,7 @@ from promise import Promise
 from promise.dataloader import DataLoader
 from graphql import GraphQLError
 from app import db
-from app.util import _SemesterContent
+from app.util import _SemesterContent, BlockStatus
 
 
 BlockContent = namedtuple(
@@ -58,15 +58,12 @@ SELECT Block_Id, BlockVisit_Id
         values = dict()
         for _, row in df_blocks.iterrows():
             print(row)
-            status = row["BlockStatus"]
-            if status.lower() == "not set":
-                status = None
             values[row["Block_Id"]] = dict(
                 id=row["Block_Id"],
                 block_code=row["BlockCode"],
                 proposal=row["Proposal_Code"],
                 name=row["Block_Name"],
-                status=status,
+                status=BlockStatus.get(row["BlockStatus"]),
                 status_reason=row["BlockStatusReason"],
                 semester=_SemesterContent(year=row["Year"], semester=row["Semester"]),
                 length=row["ObsTime"],
