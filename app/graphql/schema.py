@@ -319,6 +319,10 @@ class Block(ObjectType):
 
     priority = NonNull(Int, description="The priority of the block.")
 
+    visits = List(
+        NonNull(lambda: BlockObservation), description="The visits of the block."
+    )
+
     @property
     def description(self):
         return "THe smallest schedulable unit in a proposal."
@@ -345,6 +349,9 @@ class Block(ObjectType):
             return BlockStatus.SUPERSEDED
 
         raise GraphQLError("Unknown block status: {status}".format(status=self.status))
+
+    def resolve_visits(self, info):
+        return loaders["observation_loader"].load_many(self.visits)
 
 
 # observation
