@@ -1,6 +1,7 @@
 # required for running the server
 
 flask
+flask_cors
 flask_graphql
 flask_sqlalchemy
 graphene
