@@ -107,7 +107,7 @@ SELECT Proposal_Code, Priority, Year, Semester, Partner_Code, TimeAlloc
        JOIN Partner AS p ON mp.Partner_Id = p.Partner_Id
        JOIN Semester ON mp.Semester_Id = Semester.Semester_Id
        JOIN ProposalCode ON mp.ProposalCode_Id = ProposalCode.ProposalCode_Id
-       WHERE Proposal_Code IN ('2018-2-MLT-005') AND TimeAlloc>0
+       WHERE Proposal_Code IN %(proposal_codes)s AND TimeAlloc>0
 """
         df_time_alloc = pd.read_sql(
             sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
