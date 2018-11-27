@@ -21,6 +21,9 @@ ProposalContent = namedtuple(
         "status",
         "status_comment",
         "inactive_reason",
+        "principal_investigator",
+        "principal_contact",
+        "liaison_astronomer",
         "blocks",
         "observations",
         "time_allocations",
@@ -42,7 +45,8 @@ class ProposalLoader(DataLoader):
     def get_proposals(self, proposal_codes):
         # general proposal info
         sql = """
-SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
+SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason,
+       Leader_Id, Contact_Id, Astronomer_Id
        FROM Proposal AS p
        JOIN ProposalCode AS pc ON p.ProposalCode_Id = pc.ProposalCode_Id
        JOIN ProposalText AS pt ON p.ProposalCode_Id = pt.ProposalCode_Id
@@ -51,6 +55,7 @@ SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
        JOIN ProposalType AS type ON pgi.ProposalType_Id = type.ProposalType_Id
        LEFT JOIN ProposalInactiveReason AS pir
                  ON pgi.ProposalInactiveReason_Id = pir.ProposalInactiveReason_Id
+       JOIN ProposalContact contact ON pc.ProposalCode_Id = contact.ProposalCode_Id
        WHERE Current=1 AND Proposal_Code IN %(proposal_codes)s
        """
         df_general_info = pd.read_sql(
@@ -71,6 +76,9 @@ SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
                 status=ProposalStatus.get(row["Status"]),
                 status_comment=row["StatusComment"],
                 inactive_reason=inactive_reason,
+                principal_investigator=row["Leader_Id"],
+                principal_contact=row["Contact_Id"],
+                liaison_astronomer=row["Astronomer_Id"],
                 blocks=set(),
                 observations=set(),
             )
