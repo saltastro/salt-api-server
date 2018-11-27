@@ -190,6 +190,17 @@ form "Token {token}", where {token} is the JWT token."""  # noqa
         return self.token
 
 
+# person
+
+
+class Person(ObjectType):
+    given_name = NonNull(String, description="The given name(s).")
+
+    family_name = NonNull(String, description="The family name.")
+
+    email = String(description="The email address.")
+
+
 # proposal
 
 
@@ -210,6 +221,14 @@ class Proposal(ObjectType):
         description="The reason why the proposal is inactive."
     )
 
+    principal_investigator = NonNull(
+        lambda: Person, description="The Principal Investigator."
+    )
+
+    principal_contact = NonNull(lambda: Person, description="The Principal Contact.")
+
+    liaison_astronomer = Field(lambda: Person, description="The Principal Contact.")
+
     blocks = List(NonNull(lambda: Block), description="The blocks in the proposal.")
 
     observations = List(
@@ -226,6 +245,15 @@ class Proposal(ObjectType):
 
     def resolve_title(self, info):
         return self.title
+
+    def resolve_principal_investigator(self, info):
+        return loaders["investigator_loader"].load(self.principal_investigator)
+
+    def resolve_principal_contact(self, info):
+        return loaders["investigator_loader"].load(self.principal_contact)
+
+    def resolve_liaison_astronomer(self, info):
+        return loaders["investigator_loader"].load(self.liaison_astronomer)
 
     def resolve_blocks(self, info):
         return loaders["block_loader"].load_many(self.blocks)
