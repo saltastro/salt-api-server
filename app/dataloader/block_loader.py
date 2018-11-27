@@ -57,7 +57,6 @@ SELECT Block_Id, BlockVisit_Id
         # collect the values
         values = dict()
         for _, row in df_blocks.iterrows():
-            print(row)
             values[row["Block_Id"]] = dict(
                 id=row["Block_Id"],
                 block_code=row["BlockCode"],
@@ -81,5 +80,4 @@ SELECT Block_Id, BlockVisit_Id
                 )
             return BlockContent(**block)
 
-        print([get_block_content(block_id) for block_id in block_ids])
         return [get_block_content(block_id) for block_id in block_ids]
