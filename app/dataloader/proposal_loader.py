@@ -21,6 +21,7 @@ ProposalContent = namedtuple(
         "status",
         "status_comment",
         "inactive_reason",
+        "completion_comments",
         "principal_investigator",
         "principal_contact",
         "liaison_astronomer",
@@ -32,6 +33,10 @@ ProposalContent = namedtuple(
 
 TimeAllocationContent = namedtuple(
     "TimeAllocation", ["priority", "semester", "partner_code", "amount"]
+)
+
+CompletionCommentContent = namedtuple(
+    "CompletionCommentContent", ["semester", "comment"]
 )
 
 
@@ -79,12 +84,31 @@ SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
                 status=ProposalStatus.get(row["Status"]),
                 status_comment=row["StatusComment"],
                 inactive_reason=inactive_reason,
+                completion_comments=set(),
                 principal_investigator=row["Leader_Id"],
                 principal_contact=row["Contact_Id"],
                 liaison_astronomer=liaison_astronomer,
                 blocks=set(),
                 observations=set(),
             )
+
+        # completion comments
+        sql = """
+SELECT Proposal_Code, CompletionComment, Year, Semester
+       FROM ProposalText AS pt
+       JOIN ProposalCode AS pc on pt.ProposalCode_Id = pc.ProposalCode_Id
+       JOIN Semester AS s ON pt.Semester_Id=s.Semester_Id
+       WHERE Proposal_Code IN %(proposal_codes)s
+        """
+        df_completion_comments = pd.read_sql(
+            sql, con=db.engine, params=dict(proposal_codes=proposal_codes)
+        )
+        for _, row in df_completion_comments.iterrows():
+            semester = _SemesterContent(year=row["Year"], semester=row["Semester"])
+            comment = CompletionCommentContent(
+                semester=semester, comment=row["CompletionComment"]
+            )
+            values[row["Proposal_Code"]]["completion_comments"].add(comment)
 
         # blocks
         sql = """

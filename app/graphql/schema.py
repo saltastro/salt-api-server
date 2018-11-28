@@ -215,7 +215,10 @@ class Proposal(ObjectType):
 
     status = NonNull(lambda: ProposalStatus, description="The proposal status.")
 
-    status_comment = String(description="A comment explaining the proposal status.")
+    completion_comments = List(
+        lambda: CompletionComment,
+        description="The comments regarding proposal completion.",
+    )
 
     inactive_reason = ProposalInactiveReason(
         description="The reason why the proposal is inactive."
@@ -370,6 +373,17 @@ class TimeAllocation(ObjectType):
     )
 
     amount = NonNull(Int, description="The amount of allocatedv time, in seconds.")
+
+
+# completion comment
+
+
+class CompletionComment(ObjectType):
+    semester = NonNull(
+        lambda: Semester, description="The semester to which the comment refers."
+    )
+
+    comment = String(description="The comment regarding proposal completion.")
 
 
 # mutations
