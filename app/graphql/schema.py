@@ -215,13 +215,15 @@ class Proposal(ObjectType):
 
     status = NonNull(lambda: ProposalStatus, description="The proposal status.")
 
-    completion_comments = List(
-        lambda: CompletionComment,
-        description="The comments regarding proposal completion.",
-    )
+    status_comment = String(description="A comment explaining the proposal status.")
 
     inactive_reason = ProposalInactiveReason(
         description="The reason why the proposal is inactive."
+    )
+
+    completion_comments = List(
+        lambda: CompletionComment,
+        description="The comments regarding proposal completion.",
     )
 
     principal_investigator = NonNull(
