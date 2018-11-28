@@ -68,6 +68,9 @@ SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
                 if row["InactiveReason"]
                 else None
             )
+            liaison_astronomer = (
+                row["Astronomer_Id"] if pd.notnull(row["Astronomer_Id"]) else None
+            )
             values[row["Proposal_Code"]] = dict(
                 proposal_code=row["Proposal_Code"],
                 title=row["Title"],
@@ -78,7 +81,7 @@ SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
                 inactive_reason=inactive_reason,
                 principal_investigator=row["Leader_Id"],
                 principal_contact=row["Contact_Id"],
-                liaison_astronomer=row["Astronomer_Id"],
+                liaison_astronomer=liaison_astronomer,
                 blocks=set(),
                 observations=set(),
             )

@@ -253,6 +253,8 @@ class Proposal(ObjectType):
         return loaders["investigator_loader"].load(self.principal_contact)
 
     def resolve_liaison_astronomer(self, info):
+        if self.liaison_astronomer is None:
+            return None
         return loaders["investigator_loader"].load(self.liaison_astronomer)
 
     def resolve_blocks(self, info):
