@@ -5,6 +5,7 @@ from promise import Promise
 from promise.dataloader import DataLoader
 from graphql import GraphQLError
 from app import db
+from app.util import ObservationStatus
 
 
 ObservationContent = namedtuple(
@@ -55,7 +56,7 @@ SELECT BlockVisit_Id, MIN(UTStart) AS Start
             values[row["BlockVisit_Id"]] = dict(
                 block=int(row["Block_Id"]),
                 night=row["Date"],
-                status=row["BlockVisitStatus"],
+                status=ObservationStatus.get(row["BlockVisitStatus"]),
                 rejection_reason=row["RejectedReason"],
                 start=None,
             )

@@ -5,7 +5,6 @@ from sqlalchemy import text
 from flask import g, request
 from graphene import (
     Boolean,
-    Enum,
     Field,
     ID,
     Int,
@@ -24,10 +23,13 @@ from app import db
 from app.auth import encode
 from app import loaders
 from app.util import (
-    _SemesterContent,
+    BlockStatus,
+    ObservationStatus,
+    PartnerCode,
     ProposalInactiveReason,
     ProposalStatus,
     ProposalType,
+    _SemesterContent,
 )
 
 
@@ -64,32 +66,6 @@ class Semester(Scalar):
 
         year, semester = value.split("-")
         return _SemesterContent(year=year, semester=semester)
-
-
-# partner
-
-
-class PartnerCode(Enum):
-    AMNH = "AMNH"
-    CMU = "CMU"
-    COM = "COM"
-    DC = "DC"
-    DDT = "DDT"
-    DUR = "DUR"
-    ENG = "ENG"
-    GU = "GU"
-    HET = "HET"
-    IUCAA = "IUCAA"
-    KEY = "KEY"
-    OTH = "OTH"
-    POL = "POL"
-    RSA = "RSA"
-    RU = "RU"
-    SVP = "SVP"
-    UC = "UC"
-    UKSC = "UKSC"
-    UNC = "UNC"
-    UW = "UW"
 
 
 # root query
@@ -214,6 +190,17 @@ form "Token {token}", where {token} is the JWT token."""  # noqa
         return self.token
 
 
+# person
+
+
+class Person(ObjectType):
+    given_name = NonNull(String, description="The given name(s).")
+
+    family_name = NonNull(String, description="The family name.")
+
+    email = String(description="The email address.")
+
+
 # proposal
 
 
@@ -234,6 +221,19 @@ class Proposal(ObjectType):
         description="The reason why the proposal is inactive."
     )
 
+    completion_comments = List(
+        lambda: CompletionComment,
+        description="The comments regarding proposal completion.",
+    )
+
+    principal_investigator = NonNull(
+        lambda: Person, description="The Principal Investigator."
+    )
+
+    principal_contact = NonNull(lambda: Person, description="The Principal Contact.")
+
+    liaison_astronomer = Field(lambda: Person, description="The Principal Contact.")
+
     blocks = List(NonNull(lambda: Block), description="The blocks in the proposal.")
 
     observations = List(
@@ -251,6 +251,17 @@ class Proposal(ObjectType):
     def resolve_title(self, info):
         return self.title
 
+    def resolve_principal_investigator(self, info):
+        return loaders["investigator_loader"].load(self.principal_investigator)
+
+    def resolve_principal_contact(self, info):
+        return loaders["investigator_loader"].load(self.principal_contact)
+
+    def resolve_liaison_astronomer(self, info):
+        if self.liaison_astronomer is None:
+            return None
+        return loaders["investigator_loader"].load(self.liaison_astronomer)
+
     def resolve_blocks(self, info):
         return loaders["block_loader"].load_many(self.blocks)
 
@@ -259,37 +270,6 @@ class Proposal(ObjectType):
 
 
 # block
-
-
-class BlockStatus(Enum):
-    ACTIVE = "active"
-
-    COMPLETED = "completed"
-
-    DELETED = "deleted"
-
-    EXPIRED = "expired"
-
-    ON_HOLD = "on hold"
-
-    SUPERSEDED = "superseded"
-
-    @property
-    def description(self):
-        if self == BlockStatus.ACTIVE:
-            return "The block is active and can be observed."
-        elif self == BlockStatus.COMPLETED:
-            return "All observations for the block have been completed."
-        elif self == BlockStatus.DELETED:
-            return "The block has been deleted."
-        elif self == BlockStatus.EXPIRED:
-            return "The block is expired and will not be observed any longer."
-        elif self == BlockStatus.ON_HOLD:
-            return "The block has been put on hold and will not be observed."
-        elif self == BlockStatus.SUPERSEDED:
-            return "There exists a newer version of the block."
-
-        return "This is an undocumented block status."
 
 
 class Block(ObjectType):
@@ -319,6 +299,10 @@ class Block(ObjectType):
 
     priority = NonNull(Int, description="The priority of the block.")
 
+    visits = List(
+        NonNull(lambda: BlockObservation), description="The visits of the block."
+    )
+
     @property
     def description(self):
         return "THe smallest schedulable unit in a proposal."
@@ -329,48 +313,11 @@ class Block(ObjectType):
     def resolve_proposal(self, info):
         return loaders["proposal_loader"].load(self.proposal)
 
-    def resolve_status(self, info):
-        status = self.status.lower()
-        if status == "active":
-            return BlockStatus.ACTIVE
-        elif status == "completed":
-            return BlockStatus.COMPLETED
-        elif status == "deleted":
-            return BlockStatus.DELETED
-        elif status == "expired":
-            return BlockStatus.EXPIRED
-        elif status == "on hold":
-            return BlockStatus.ON_HOLD
-        elif status == "superseded":
-            return BlockStatus.SUPERSEDED
-
-        raise GraphQLError("Unknown block status: {status}".format(status=self.status))
+    def resolve_visits(self, info):
+        return loaders["observation_loader"].load_many(self.visits)
 
 
 # observation
-
-
-class ObservationStatus(Enum):
-    ACCEPTED = "accepted"
-
-    REJECTED = "rejected"
-
-    QUEUED = "in queue"
-
-    DELETED = "deleted"
-
-    @property
-    def description(self):
-        if self == ObservationStatus.ACCEPTED:
-            return "The observation has been accepted."
-        elif self == ObservationStatus.REJECTED:
-            return "The observation has been rejected."
-        elif self == ObservationStatus.QUEUED:
-            return "The observation has been put in the queue."
-        elif self == ObservationStatus.DELETED:
-            return "The observation has been deleted."
-
-        return "This is an undocumented observation status."
 
 
 class Observation(Interface):
@@ -385,21 +332,6 @@ class Observation(Interface):
     rejection_reason = String(
         description="Reason why the observation has been rejected."
     )
-
-    def resolve_status(self, info):
-        status = self.status.lower()
-        if status == "accepted":
-            return ObservationStatus.ACCEPTED
-        elif status == "rejected":
-            return ObservationStatus.REJECTED
-        elif status == "in queue":
-            return ObservationStatus.QUEUED
-        elif status == "deleted":
-            return ObservationStatus.DELETED
-
-        raise GraphQLError(
-            "Unknown observation status: {status}".format(status=self.status)
-        )
 
 
 class BlockObservation(ObjectType):
@@ -443,6 +375,17 @@ class TimeAllocation(ObjectType):
     )
 
     amount = NonNull(Int, description="The amount of allocatedv time, in seconds.")
+
+
+# completion comment
+
+
+class CompletionComment(ObjectType):
+    semester = NonNull(
+        lambda: Semester, description="The semester to which the comment refers."
+    )
+
+    comment = String(description="The comment regarding proposal completion.")
 
 
 # mutations

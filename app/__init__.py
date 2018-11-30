@@ -29,12 +29,18 @@ def log_exception(e):
 
 db = SQLAlchemy()
 
-from app.dataloader import ObservationLoader, ProposalLoader, BlockLoader  # noqa E402
+from app.dataloader import (
+    ObservationLoader,
+    ProposalLoader,
+    BlockLoader,
+    InvestigatorLoader,
+)  # noqa E402
 
 loaders = {
     "proposal_loader": ProposalLoader(),
     "observation_loader": ObservationLoader(),
     "block_loader": BlockLoader(),
+    "investigator_loader": InvestigatorLoader(),
 }
 
 # these imports can only happen here as otherwise there might be import errors

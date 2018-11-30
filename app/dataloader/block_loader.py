@@ -4,7 +4,7 @@ from promise import Promise
 from promise.dataloader import DataLoader
 from graphql import GraphQLError
 from app import db
-from app.util import _SemesterContent
+from app.util import _SemesterContent, BlockStatus
 
 
 BlockContent = namedtuple(
@@ -19,6 +19,7 @@ BlockContent = namedtuple(
         "semester",
         "length",
         "priority",
+        "visits",
     ],
 )
 
@@ -31,6 +32,7 @@ class BlockLoader(DataLoader):
         return Promise.resolve(self.get_blocks(block_ids))
 
     def get_blocks(self, block_ids):
+        # block details
         sql = """
 SELECT Block_Id, BlockCode, Proposal_Code, Block_Name, BlockStatus, BlockStatusReason,
        Year, Semester, ObsTime, Priority
@@ -41,26 +43,34 @@ SELECT Block_Id, BlockCode, Proposal_Code, Block_Name, BlockStatus, BlockStatusR
        JOIN Proposal AS p ON b.Proposal_Id = p.Proposal_Id
        JOIN Semester AS s ON p.Semester_Id = s.Semester_Id
        WHERE Block_Id IN %(block_ids)s
-        """
-        df = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
+"""
+        df_blocks = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
+
+        # block visits
+        sql = """
+SELECT Block_Id, BlockVisit_Id
+       FROM BlockVisit AS bv
+       WHERE Block_Id IN %(block_ids)s
+"""
+        df_visits = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
 
         # collect the values
         values = dict()
-        for _, row in df.iterrows():
-            status = row["BlockStatus"]
-            if status.lower() == "not set":
-                status = None
+        for _, row in df_blocks.iterrows():
             values[row["Block_Id"]] = dict(
                 id=row["Block_Id"],
                 block_code=row["BlockCode"],
                 proposal=row["Proposal_Code"],
                 name=row["Block_Name"],
-                status=status,
+                status=BlockStatus.get(row["BlockStatus"]),
                 status_reason=row["BlockStatusReason"],
                 semester=_SemesterContent(year=row["Year"], semester=row["Semester"]),
                 length=row["ObsTime"],
                 priority=row["Priority"],
+                visits=set(),
             )
+        for _, row in df_visits.iterrows():
+            values[row["Block_Id"]]["visits"].add(row["BlockVisit_Id"].item())
 
         def get_block_content(block_id):
             block = values.get(block_id)
