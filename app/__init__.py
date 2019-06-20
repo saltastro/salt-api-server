@@ -34,6 +34,7 @@ from app.dataloader import (
     ProposalLoader,
     BlockLoader,
     InvestigatorLoader,
+    PartnerTimeShareLoader,
 )  # noqa E402
 
 loaders = {
@@ -41,6 +42,7 @@ loaders = {
     "observation_loader": ObservationLoader(),
     "block_loader": BlockLoader(),
     "investigator_loader": InvestigatorLoader(),
+    "partner_time_share_loader": PartnerTimeShareLoader(),
 }
 
 # these imports can only happen here as otherwise there might be import errors

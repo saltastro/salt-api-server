@@ -14,6 +14,7 @@ from graphene import (
     NonNull,
     ObjectType,
     String,
+    Float,
 )
 from graphene.types import Date, DateTime, Scalar
 from graphene_file_upload.scalars import Upload
@@ -105,6 +106,19 @@ class Query(ObjectType):
         proposal_code=NonNull(String, description="The proposal code."),
     )
 
+    partners_share_time = Field(
+        lambda: List(PartnerTimeShare),
+        description="Partners allocated share time.",
+        partner_code=PartnerCode(
+            description="The partner whose proposals should be returned.",
+            required=False,
+        ),
+        semester=Semester(
+            description="The semester whose proposals should be returned.",
+            required=False,
+        ),
+    )
+
     def resolve_auth_token(self, info, username, password):
         # query for the user with the given credentials
         sql = """SELECT PiptUser_Id
@@ -172,6 +186,42 @@ SELECT DISTINCT Proposal_Code
             )
 
         return loaders["proposal_loader"].load(proposal_code)
+
+    def resolve_partners_share_time(self, info, partner_code=None, semester=None):
+        # get the filter conditions
+        params = dict()
+        filters = []
+        if partner_code:
+            filters.append("partner.Partner_Code=%(partner_code)s")
+            params["partner_code"] = partner_code
+
+        if semester:
+            filters.append("(s.Year=%(year)s AND s.Semester=%(semester)s)")
+            params["year"] = semester.year
+            params["semester"] = semester.semester
+
+        if len(filters):
+            # query for the partner time share according to semester or partner code
+            sql = """SELECT Partner_Code
+           FROM PartnerShareTimeDist AS pst
+           JOIN Semester AS s ON pst.Semester_Id = s.Semester_Id
+           JOIN Partner AS partner ON pst.Partner_Id = partner.Partner_Id
+           WHERE {where}
+           """.format(
+                where=" AND ".join(filters)
+            )
+        else:
+            sql = """SELECT Partner_Code
+           FROM PartnerShareTimeDist
+           JOIN Semester using(Semester_Id)
+           JOIN Partner using(Partner_Id)
+           """
+
+        df = pd.read_sql(sql, con=db.engine, params=params)
+
+        all_partner_share_time = df["Partner_Code"].tolist()
+
+        return loaders["partner_time_share_loader"].load_many(all_partner_share_time)
 
 
 # authentication token
@@ -386,6 +436,21 @@ class CompletionComment(ObjectType):
     )
 
     comment = String(description="The comment regarding proposal completion.")
+
+
+# partner time share
+
+
+class PartnerTimeShare(ObjectType):
+    partner_code = NonNull(String, description="The partner code.")
+
+    share_percent = NonNull(Float, description="The amount of partner share percent.")
+
+    def resolve_partner_code(self, info):
+        return self.partner_code
+
+    def resolve_share_percent(self, info):
+        return self.share_percent
 
 
 # mutations
