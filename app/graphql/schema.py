@@ -73,6 +73,10 @@ class Semester(Scalar):
 
 _TokenContent = namedtuple("TokenContent", ["token"])
 
+_PartnerTimeShareContent = namedtuple(
+    "PartnerTimeShareContent", ["partner_code", "share_percent", "semester"]
+)
+
 
 def _check_auth_token():
     if "Authorization" not in request.headers or not g.user:
@@ -106,15 +110,15 @@ class Query(ObjectType):
         proposal_code=NonNull(String, description="The proposal code."),
     )
 
-    partners_share_time = Field(
+    partner_share_times = Field(
         lambda: List(PartnerTimeShare),
-        description="Partners allocated share time.",
+        description="Time share allocated to a partner, in percent.",
         partner_code=PartnerCode(
-            description="The partner whose proposals should be returned.",
+            description="The partner whose time shares should be returned.",
             required=False,
         ),
         semester=Semester(
-            description="The semester whose proposals should be returned.",
+            description="The semester whose time shares to be returned.",
             required=False,
         ),
     )
@@ -187,7 +191,7 @@ SELECT DISTINCT Proposal_Code
 
         return loaders["proposal_loader"].load(proposal_code)
 
-    def resolve_partners_share_time(self, info, partner_code=None, semester=None):
+    def resolve_partner_share_times(self, info, partner_code=None, semester=None):
         # get the filter conditions
         params = dict()
         filters = []
@@ -201,8 +205,8 @@ SELECT DISTINCT Proposal_Code
             params["semester"] = semester.semester
 
         if len(filters):
-            # query for the partner time share according to semester or partner code
-            sql = """SELECT Partner_Code
+            # query for the partner time shares according to the semester or partner code
+            sql = """SELECT Partner_Code, SharePercent, Year, Semester
            FROM PartnerShareTimeDist AS pst
            JOIN Semester AS s ON pst.Semester_Id = s.Semester_Id
            JOIN Partner AS partner ON pst.Partner_Id = partner.Partner_Id
@@ -211,7 +215,7 @@ SELECT DISTINCT Proposal_Code
                 where=" AND ".join(filters)
             )
         else:
-            sql = """SELECT Partner_Code
+            sql = """SELECT Partner_Code, SharePercent, Year, Semester
            FROM PartnerShareTimeDist
            JOIN Semester using(Semester_Id)
            JOIN Partner using(Partner_Id)
@@ -219,9 +223,15 @@ SELECT DISTINCT Proposal_Code
 
         df = pd.read_sql(sql, con=db.engine, params=params)
 
-        all_partner_share_time = df["Partner_Code"].tolist()
+        partner_time_shares = []
+        for _, row in df.iterrows():
+            partner_time_shares.append(_PartnerTimeShareContent(
+                semester=_SemesterContent(year=row["Year"], semester=row["Semester"]),
+                partner_code=row["Partner_Code"],
+                share_percent=row["SharePercent"],
+            ))
 
-        return loaders["partner_time_share_loader"].load_many(all_partner_share_time)
+        return partner_time_shares
 
 
 # authentication token
@@ -444,7 +454,11 @@ class CompletionComment(ObjectType):
 class PartnerTimeShare(ObjectType):
     partner_code = NonNull(String, description="The partner code.")
 
-    share_percent = NonNull(Float, description="The amount of partner share percent.")
+    share_percent = NonNull(Float, description="The time share, in percent.")
+
+    semester = NonNull(
+        lambda: Semester, description="The semester for the partner time share."
+    )
 
     def resolve_partner_code(self, info):
         return self.partner_code

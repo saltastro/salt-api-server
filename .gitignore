@@ -104,6 +104,6 @@ ENV/
 # macOS generated files
 .DS_Store
 
-# ide
+# IDE
 .idea/
 .vscode/
