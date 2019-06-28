@@ -77,6 +77,10 @@ _PartnerTimeShareContent = namedtuple(
     "PartnerTimeShareContent", ["partner_code", "share_percent", "semester"]
 )
 
+_PartnerSatObservationContent = namedtuple(
+    "PartnerSatObservationContent", ["observation_time", "status"]
+)
+
 
 def _check_auth_token():
     if "Authorization" not in request.headers or not g.user:
@@ -112,7 +116,7 @@ class Query(ObjectType):
 
     partner_share_times = Field(
         lambda: List(PartnerTimeShare),
-        description="Time share allocated to a partner, in percent.",
+        description="A list of time share allocated to a partner, in percent.",
         partner_code=PartnerCode(
             description="The partner whose time shares should be returned.",
             required=False,
@@ -120,6 +124,15 @@ class Query(ObjectType):
         semester=Semester(
             description="The semester whose time shares to be returned.",
             required=False,
+        ),
+    )
+
+    partner_stat_observations = Field(
+        lambda: List(PartnerStatObservation),
+        description="A list of observation times, in seconds",
+        semester=Semester(
+            description="The semester whose observation times to be returned.",
+            required=True,
         ),
     )
 
@@ -232,6 +245,36 @@ SELECT DISTINCT Proposal_Code
             ))
 
         return partner_time_shares
+
+
+    def resolve_partner_stat_observations(self, info, semester):
+        # get the filter conditions
+        params = dict()
+        filters = ["(s.Year=%(year)s AND s.Semester=%(semester)s)"]
+        params["year"] = semester.year
+        params["semester"] = semester.semester
+
+        # query for the observation times
+        sql = """SELECT ObsTime, BlockVisitStatus FROM Proposal AS p
+        JOIN Block AS b ON b.Proposal_Id = p.Proposal_Id
+        JOIN BlockVisit AS bv ON bv.Block_Id = b.Block_Id
+        JOIN Semester AS s ON s.Semester_Id = p.Semester_Id
+        JOIN BlockVisitStatus AS bvs ON bvs.BlockVisitStatus_Id = bv.BlockVisitStatus_Id
+        WHERE {where}
+        """.format(
+            where=" AND ".join(filters)
+        )
+
+        df = pd.read_sql(sql, con=db.engine, params=params)
+
+        partner_stat_observations = []
+        for _, row in df.iterrows():
+            partner_stat_observations.append(_PartnerSatObservationContent(
+                observation_time=row["ObsTime"],
+                status=row["BlockVisitStatus"]
+            ))
+
+        return partner_stat_observations
 
 
 # authentication token
@@ -431,10 +474,10 @@ class TimeAllocation(ObjectType):
     )
 
     partner_code = NonNull(
-        lambda: PartnerCode, description="The partber who has made the time allocation."
+        lambda: PartnerCode, description="The partner who has made the time allocation."
     )
 
-    amount = NonNull(Int, description="The amount of allocatedv time, in seconds.")
+    amount = NonNull(Int, description="The amount of allocated time, in seconds.")
 
 
 # completion comment
@@ -465,6 +508,19 @@ class PartnerTimeShare(ObjectType):
 
     def resolve_share_percent(self, info):
         return self.share_percent
+
+
+# all observation for partner stat
+
+
+class PartnerStatObservation(ObjectType):
+    observation_time = NonNull(Float, description="Observation time, in seconds")
+    status = NonNull(
+        lambda: ObservationStatus, description="The status of the observation."
+    )
+
+    def resolve_observation(self, info):
+        return self.observation_time
 
 
 # mutations
