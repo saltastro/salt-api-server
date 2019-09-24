@@ -36,7 +36,6 @@ from app.util import (
 
 # semester
 
-
 class Semester(Scalar):
     """A proposal semester, such as \"2018-2\" or \"2019-1\"."""
 
@@ -79,6 +78,10 @@ _PartnerTimeShareContent = namedtuple(
 
 _PartnerSatObservationContent = namedtuple(
     "PartnerSatObservationContent", ["observation_time", "status"]
+)
+
+_WeatherDownTimeContent = namedtuple(
+    "WeatherDownTimeContent", ["science", "engineering", "lost_to_weather", "lost_to_problems", "idle"]
 )
 
 
@@ -127,7 +130,7 @@ class Query(ObjectType):
         ),
     )
 
-    partner_stat_observations = Field(
+    partner_stat_observations= Field(
         lambda: List(PartnerStatObservation),
         description="A list of observation times, in seconds",
         semester=Semester(
@@ -135,6 +138,16 @@ class Query(ObjectType):
             required=True,
         ),
     )
+
+    weather_down_time = Field(
+        lambda: WeatherDownTime,
+        description="The weather down time",
+        semester=Semester(
+            description="The semester whose weather down time to be returned.",
+            required=True,
+        ),
+    )
+
 
     def resolve_auth_token(self, info, username, password):
         # query for the user with the given credentials
@@ -175,6 +188,8 @@ SELECT DISTINCT Proposal_Code
        JOIN Investigator AS i ON pi.Investigator_Id = i.Investigator_Id
        JOIN Institute AS institute ON i.Institute_Id = institute.Institute_Id
        JOIN Partner AS partner ON institute.Partner_Id = partner.Partner_Id
+       JOIN P1ObservingConditions AS p1o ON p1o.ProposalCode_Id = p.ProposalCode_Id
+       JOIN Transparency AS t ON p1o.Transparency_Id = t.Transparency_Id
        WHERE {where}
 """.format(
             where=" AND ".join(filters)
@@ -246,7 +261,6 @@ SELECT DISTINCT Proposal_Code
 
         return partner_time_shares
 
-
     def resolve_partner_stat_observations(self, info, semester):
         # get the filter conditions
         params = dict()
@@ -276,9 +290,40 @@ SELECT DISTINCT Proposal_Code
 
         return partner_stat_observations
 
+    def resolve_weather_down_time(self, info, semester):
+        # get the filter conditions
+        params = dict()
+        filters = ["(s.Year=%(year)s AND s.Semester=%(semester)s)"]
+        params["year"] = semester.year
+        params["semester"] = semester.semester
+
+        # query for the weather down time
+        sql = """SELECT SUM(ScienceTime) AS ScienceTime, SUM(EngineeringTime) AS EngineeringTime, 
+        SUM(TimeLostToWeather) AS TimeLostToWeather, SUM(TimeLostToProblems) AS TimeLostToProblems, 
+        SUM(IdleTime) AS IdleTime   
+        FROM NightInfo AS ni
+        JOIN Semester AS s ON (ni.Date >= s.StartSemester AND ni.Date <= s.EndSemester)
+        WHERE {where}
+        """.format(
+            where=" AND ".join(filters)
+        )
+
+        df = pd.read_sql(sql, con=db.engine, params=params)
+
+        weather_down_time = dict()
+        for _, row in df.iterrows():
+            weather_down_time = _WeatherDownTimeContent(
+                science=row["ScienceTime"],
+                engineering=row["EngineeringTime"],
+                lost_to_weather=row["TimeLostToWeather"],
+                lost_to_problems=row["TimeLostToProblems"],
+                idle=row["IdleTime"],
+            )
+
+        return weather_down_time
+
 
 # authentication token
-
 
 class AuthToken(ObjectType):
     @property
@@ -295,7 +340,6 @@ form "Token {token}", where {token} is the JWT token."""  # noqa
 
 # person
 
-
 class Person(ObjectType):
     given_name = NonNull(String, description="The given name(s).")
 
@@ -305,7 +349,6 @@ class Person(ObjectType):
 
 
 # proposal
-
 
 class Proposal(ObjectType):
     proposal_code = NonNull(
@@ -323,6 +366,8 @@ class Proposal(ObjectType):
     inactive_reason = ProposalInactiveReason(
         description="The reason why the proposal is inactive."
     )
+
+    transparency = NonNull(String, description="The proposal transparency.")
 
     completion_comments = List(
         lambda: CompletionComment,
@@ -354,6 +399,9 @@ class Proposal(ObjectType):
     def resolve_title(self, info):
         return self.title
 
+    def resolve_transparency(self, info):
+        return self.transparency
+
     def resolve_principal_investigator(self, info):
         return loaders["investigator_loader"].load(self.principal_investigator)
 
@@ -373,7 +421,6 @@ class Proposal(ObjectType):
 
 
 # block
-
 
 class Block(ObjectType):
     id = NonNull(ID, description="The unique block id.")
@@ -512,7 +559,6 @@ class PartnerTimeShare(ObjectType):
 
 # all observation for partner stat
 
-
 class PartnerStatObservation(ObjectType):
     observation_time = NonNull(Float, description="Observation time, in seconds")
     status = NonNull(
@@ -523,8 +569,36 @@ class PartnerStatObservation(ObjectType):
         return self.observation_time
 
 
-# mutations
+# weather down time
 
+class WeatherDownTime(ObjectType):
+    science = NonNull(Float, description="The time used for science.")
+    engineering = NonNull(Float, description="The time used for engineering.")
+    lost_to_weather = NonNull(Float, description="The time lost due to weather.")
+    lost_to_problems = NonNull(Float, description="The time lost due to problems.")
+    idle = NonNull(Float, description="The time lost on doing nothing.")
+
+    semester = NonNull(
+        lambda: Semester, description="The semester for the partner time share."
+    )
+
+    def resolve_science(self, info):
+        return self.science
+
+    def resolve_engineering(self, info):
+        return self.engineering
+
+    def resolve_lost_to_weather(self, info):
+        return self.lost_to_weather
+
+    def resolve_lost_to_problems(self, info):
+        return self.lost_to_problems
+
+    def resolve_idle(self, info):
+        return self.idle
+
+
+# mutations
 
 class PutBlockOnHold(Mutation):
     class Arguments:
