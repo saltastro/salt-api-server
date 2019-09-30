@@ -249,3 +249,20 @@ class ObservationStatus(Enum):
             return "The observation has been deleted."
 
         return "This is an undocumented observation status."
+
+
+# observing window type
+
+class ObservingWindowType(Enum):
+    STRICT = "Strict"
+    EXTENDED = "Extended"
+    STRICT_EXTENDED = "Strict+Extended"
+
+    @property
+    def description(self):
+        if self == ObservingWindowType.STRICT:
+            return "The strict observation window."
+        if self == ObservingWindowType.EXTENDED:
+            return "The extended observation window."
+        if self == ObservingWindowType.STRICT_EXTENDED:
+            return "The strict and extended observation window."

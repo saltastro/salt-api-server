@@ -26,6 +26,7 @@ from app import loaders
 from app.util import (
     BlockStatus,
     ObservationStatus,
+    ObservingWindowType,
     PartnerCode,
     ProposalInactiveReason,
     ProposalStatus,
@@ -453,6 +454,10 @@ class Block(ObjectType):
         NonNull(lambda: BlockObservation), description="The visits of the block."
     )
 
+    observations_windows = List(
+        NonNull(lambda: BlockObservationWindow), description="The block observations windows."
+    )
+
     @property
     def description(self):
         return "THe smallest schedulable unit in a proposal."
@@ -468,7 +473,6 @@ class Block(ObjectType):
 
 
 # observation
-
 
 class Observation(Interface):
     night = NonNull(Date, description="The night when the observation was taken.")
@@ -491,6 +495,16 @@ class BlockObservation(ObjectType):
     @property
     def description(self):
         return "An observation of a block."
+
+
+class BlockObservationWindow(ObjectType):
+    start_date = NonNull(Date, description="The start of the observing window.")
+
+    end_date = NonNull(Date, description="The end of the observing window.")
+
+    observation_window_type = NonNull(
+        lambda: ObservingWindowType, description='The observation window type such as "strict".'
+    )
 
 
 class ProposalObservation(ObjectType):

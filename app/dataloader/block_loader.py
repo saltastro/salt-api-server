@@ -4,7 +4,7 @@ from promise import Promise
 from promise.dataloader import DataLoader
 from graphql import GraphQLError
 from app import db
-from app.util import _SemesterContent, BlockStatus
+from app.util import _SemesterContent, BlockStatus, ObservingWindowType
 
 
 BlockContent = namedtuple(
@@ -20,7 +20,12 @@ BlockContent = namedtuple(
         "length",
         "priority",
         "visits",
+        "observations_windows"
     ],
+)
+
+ObservationWindowContent = namedtuple(
+    "ObservationWindowContent", ["start_date", "end_date", "observation_window_type"]
 )
 
 
@@ -54,6 +59,16 @@ SELECT Block_Id, BlockVisit_Id
 """
         df_visits = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
 
+        # block observing windows
+        sql = """
+        SELECT Block_Id, VisibilityStart, VisibilityEnd, BlockVisibilityWindowType 
+        FROM BlockVisibilityWindow AS bvw
+        JOIN BlockVisibilityWindowType AS bvwt ON bvw.BlockVisibilityWindowType_Id = bvwt.BlockVisibilityWindowType_Id
+        WHERE Block_Id IN %(block_ids)s
+        """
+
+        df_observations_windows = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
+
         # collect the values
         values = dict()
         for _, row in df_blocks.iterrows():
@@ -68,9 +83,18 @@ SELECT Block_Id, BlockVisit_Id
                 length=row["ObsTime"],
                 priority=row["Priority"],
                 visits=set(),
+                observations_windows=set(),
             )
+
         for _, row in df_visits.iterrows():
             values[row["Block_Id"]]["visits"].add(row["BlockVisit_Id"].item())
+
+        for _, row in df_observations_windows.iterrows():
+            values[row["Block_Id"]]["observations_windows"].add(ObservationWindowContent(
+                start_date=row["VisibilityStart"],
+                end_date=row["VisibilityEnd"],
+                observation_window_type=row["BlockVisibilityWindowType"],
+            ))
 
         def get_block_content(block_id):
             block = values.get(block_id)
