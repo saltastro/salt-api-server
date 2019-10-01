@@ -7,6 +7,7 @@ from app import db
 import time
 from datetime import datetime
 from app.util import _SemesterContent, BlockStatus
+import pprint
 
 BlockContent = namedtuple(
     "BlockContent",
@@ -78,7 +79,7 @@ SELECT Block_Id, BlockVisit_Id
 """
         df_visits = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
 
-        # block observing windows
+        # block observing windows query
         sql = """
         SELECT Block_Id, UNIX_TIMESTAMP(VisibilityStart) AS VisibilityStart, 
         UNIX_TIMESTAMP(VisibilityEnd) AS VisibilityEnd, BlockVisibilityWindowType 
@@ -90,9 +91,42 @@ SELECT Block_Id, BlockVisit_Id
 
         df_block_observing_windows = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
 
-        # collect the values
+        # now timestamp
+        now = int(time.time())
+        # the time today began
+        today = self.start_of_day(now, self.START_OF_DAY_HOURS)
+
+        # collect details of observing windows and group them according to past, today's and remaining
         values = dict()
         for _, row in df_blocks.iterrows():
+            past_windows = set()
+            todays_windows = set()
+            remaining_windows = set()
+            for _, row1 in df_block_observing_windows.iterrows():
+                if row1["Block_Id"] == row["Block_Id"]:
+                    visibility_start = row1["VisibilityStart"]
+                    visibility_end = row1["VisibilityEnd"]
+                    window_type = row1["BlockVisibilityWindowType"]
+                    # the time night started
+                    start_of_night = self.start_of_day(visibility_start, self.START_OF_DAY_HOURS)
+                    # observing window details
+                    observing_window = ObservingWindowContent(
+                        night_start=datetime.fromtimestamp(start_of_night).strftime("%d %B %Y"),
+                        observing_window="{} - {}".format(
+                            datetime.fromtimestamp(visibility_start).strftime("%H:%M:%S"),
+                            datetime.fromtimestamp(visibility_end).strftime("%H:%M:%S")
+                        ),
+                        duration=visibility_end - visibility_start,
+                        window_type=window_type
+                    )
+                    if start_of_night < today:
+                        past_windows.add(observing_window)
+                    elif start_of_night == today:
+                        todays_windows.add(observing_window)
+                    elif start_of_night > today:
+                        remaining_windows.add(observing_window)
+
+            # collect details of the block
             values[row["Block_Id"]] = dict(
                 id=row["Block_Id"],
                 block_code=row["BlockCode"],
@@ -105,45 +139,23 @@ SELECT Block_Id, BlockVisit_Id
                 priority=row["Priority"],
                 visits=set(),
                 observing_windows=BlockObservingWindowContent(
-                    past_windows=set(),
-                    todays_windows=set(),
-                    remaining_windows=set(),
+                    past_windows=sorted(
+                        past_windows,
+                        key=lambda x: datetime.strptime(x[0], "%d %B %Y")
+                    ),
+                    todays_windows=sorted(
+                        todays_windows,
+                        key=lambda x: datetime.strptime(x[0], "%d %B %Y")
+                    ),
+                    remaining_windows=sorted(
+                        remaining_windows,
+                        key=lambda x: datetime.strptime(x[0], "%d %B %Y")
+                    ),
                 ),
             )
 
         for _, row in df_visits.iterrows():
             values[row["Block_Id"]]["visits"].add(row["BlockVisit_Id"].item())
-
-        now = int(time.time())
-        today = self.start_of_day(now, self.START_OF_DAY_HOURS)
-
-        for _, row in df_block_observing_windows.iterrows():
-            visibility_start = row["VisibilityStart"]
-            visibility_end = row["VisibilityEnd"]
-            window_type = row["BlockVisibilityWindowType"]
-            start_of_night = self.start_of_day(visibility_start, self.START_OF_DAY_HOURS)
-
-            observing_window = ObservingWindowContent(
-                night_start=datetime.fromtimestamp(start_of_night).strftime("%d %B %Y"),
-                observing_window="{} - {}".format(
-                    datetime.fromtimestamp(visibility_start).strftime("%H:%M:%S"),
-                    datetime.fromtimestamp(visibility_end).strftime("%H:%M:%S")
-                ),
-                duration=visibility_end - visibility_start,
-                window_type=window_type
-            )
-            if start_of_night < today:
-                values[row["Block_Id"]]["observing_windows"][0].add(
-                    observing_window
-                )
-            elif start_of_night == today:
-                values[row["Block_Id"]]["observing_windows"][1].add(
-                    observing_window
-                )
-            elif start_of_night > today:
-                values[row["Block_Id"]]["observing_windows"][2].add(
-                    observing_window
-                )
 
         def get_block_content(block_id):
             block = values.get(block_id)
