@@ -454,9 +454,7 @@ class Block(ObjectType):
         NonNull(lambda: BlockObservation), description="The visits of the block."
     )
 
-    observations_windows = List(
-        NonNull(lambda: BlockObservationWindow), description="The block observations windows."
-    )
+    observing_windows = NonNull(lambda: BlockObservingWindow, description="The block observing windows.")
 
     @property
     def description(self):
@@ -497,13 +495,29 @@ class BlockObservation(ObjectType):
         return "An observation of a block."
 
 
-class BlockObservationWindow(ObjectType):
-    start_date = NonNull(Date, description="The start of the observing window.")
+class ObservingWindow(ObjectType):
+    night_start = NonNull(String, description="The start of the observing window.")
 
-    end_date = NonNull(Date, description="The end of the observing window.")
+    observing_window = NonNull(String, description="The observing window.")
 
-    observation_window_type = NonNull(
+    duration = NonNull(Float, description="The observing window duration in seconds.")
+
+    window_type = NonNull(
         lambda: ObservingWindowType, description='The observation window type such as "strict".'
+    )
+
+
+class BlockObservingWindow(ObjectType):
+    past_windows = List(
+        NonNull(lambda: ObservingWindow), description="Past observing window."
+    )
+
+    todays_windows = List(
+        NonNull(lambda: ObservingWindow), description="Today\'s observing window."
+    )
+
+    remaining_windows = List(
+        NonNull(lambda: ObservingWindow), description="Remaining observing window."
     )
 
 

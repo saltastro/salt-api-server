@@ -4,8 +4,9 @@ from promise import Promise
 from promise.dataloader import DataLoader
 from graphql import GraphQLError
 from app import db
-from app.util import _SemesterContent, BlockStatus, ObservingWindowType
-
+import time
+from datetime import datetime
+from app.util import _SemesterContent, BlockStatus
 
 BlockContent = namedtuple(
     "BlockContent",
@@ -20,21 +21,39 @@ BlockContent = namedtuple(
         "length",
         "priority",
         "visits",
-        "observations_windows"
+        "observing_windows"
     ],
 )
 
-ObservationWindowContent = namedtuple(
-    "ObservationWindowContent", ["start_date", "end_date", "observation_window_type"]
+ObservingWindowContent = namedtuple(
+    "ObservingWindowContent", ["night_start", "observing_window", "duration", "window_type"]
+)
+
+
+BlockObservingWindowContent = namedtuple(
+    "BlockObservingWindowContent", ["past_windows", "todays_windows", "remaining_windows"]
 )
 
 
 class BlockLoader(DataLoader):
+    START_OF_DAY_HOURS = 6  # 6:00 UT = 8:00 SAST
+
     def __init__(self):
         DataLoader.__init__(self, cache=False)
 
     def batch_load_fn(self, block_ids):
         return Promise.resolve(self.get_blocks(block_ids))
+
+    def start_of_day(self, timestamp, day_start_hour):
+        seconds_until_start_hour = day_start_hour * 3600
+        seconds_per_day = 24 * 3600
+        seconds_since_midnight = timestamp % seconds_per_day
+        if seconds_since_midnight >= seconds_until_start_hour:
+            # time start offset and midnight
+            return (timestamp - seconds_since_midnight) + seconds_until_start_hour
+        else:
+            # time between midnight and start offset
+            return (timestamp - seconds_since_midnight) - seconds_per_day + seconds_until_start_hour
 
     def get_blocks(self, block_ids):
         # block details
@@ -61,13 +80,15 @@ SELECT Block_Id, BlockVisit_Id
 
         # block observing windows
         sql = """
-        SELECT Block_Id, VisibilityStart, VisibilityEnd, BlockVisibilityWindowType 
+        SELECT Block_Id, UNIX_TIMESTAMP(VisibilityStart) AS VisibilityStart, 
+        UNIX_TIMESTAMP(VisibilityEnd) AS VisibilityEnd, BlockVisibilityWindowType 
         FROM BlockVisibilityWindow AS bvw
         JOIN BlockVisibilityWindowType AS bvwt ON bvw.BlockVisibilityWindowType_Id = bvwt.BlockVisibilityWindowType_Id
         WHERE Block_Id IN %(block_ids)s
+        ORDER BY VisibilityStart DESC
         """
 
-        df_observations_windows = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
+        df_block_observing_windows = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
 
         # collect the values
         values = dict()
@@ -83,18 +104,46 @@ SELECT Block_Id, BlockVisit_Id
                 length=row["ObsTime"],
                 priority=row["Priority"],
                 visits=set(),
-                observations_windows=set(),
+                observing_windows=BlockObservingWindowContent(
+                    past_windows=set(),
+                    todays_windows=set(),
+                    remaining_windows=set(),
+                ),
             )
 
         for _, row in df_visits.iterrows():
             values[row["Block_Id"]]["visits"].add(row["BlockVisit_Id"].item())
 
-        for _, row in df_observations_windows.iterrows():
-            values[row["Block_Id"]]["observations_windows"].add(ObservationWindowContent(
-                start_date=row["VisibilityStart"],
-                end_date=row["VisibilityEnd"],
-                observation_window_type=row["BlockVisibilityWindowType"],
-            ))
+        now = int(time.time())
+        today = self.start_of_day(now, self.START_OF_DAY_HOURS)
+
+        for _, row in df_block_observing_windows.iterrows():
+            visibility_start = row["VisibilityStart"]
+            visibility_end = row["VisibilityEnd"]
+            window_type = row["BlockVisibilityWindowType"]
+            start_of_night = self.start_of_day(visibility_start, self.START_OF_DAY_HOURS)
+
+            observing_window = ObservingWindowContent(
+                night_start=datetime.fromtimestamp(start_of_night).strftime("%d %B %Y"),
+                observing_window="{} - {}".format(
+                    datetime.fromtimestamp(visibility_start).strftime("%H:%M:%S"),
+                    datetime.fromtimestamp(visibility_end).strftime("%H:%M:%S")
+                ),
+                duration=visibility_end - visibility_start,
+                window_type=window_type
+            )
+            if start_of_night < today:
+                values[row["Block_Id"]]["observing_windows"][0].add(
+                    observing_window
+                )
+            elif start_of_night == today:
+                values[row["Block_Id"]]["observing_windows"][1].add(
+                    observing_window
+                )
+            elif start_of_night > today:
+                values[row["Block_Id"]]["observing_windows"][2].add(
+                    observing_window
+                )
 
         def get_block_content(block_id):
             block = values.get(block_id)
