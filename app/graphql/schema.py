@@ -454,7 +454,7 @@ class Block(ObjectType):
         NonNull(lambda: BlockObservation), description="The visits of the block."
     )
 
-    observing_windows = NonNull(lambda: BlockObservingWindow, description="The block observing windows.")
+    observing_window = NonNull(lambda: BlockObservingWindow, description="The block observing windows.")
 
     @property
     def description(self):
@@ -468,6 +468,9 @@ class Block(ObjectType):
 
     def resolve_visits(self, info):
         return loaders["observation_loader"].load_many(self.visits)
+
+    def resolve_observing_window(self, info):
+        return loaders["observing_window_loader"].load(self.observing_window)
 
 
 # observation

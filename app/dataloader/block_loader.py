@@ -22,39 +22,18 @@ BlockContent = namedtuple(
         "length",
         "priority",
         "visits",
-        "observing_windows"
+        "observing_window"
     ],
-)
-
-ObservingWindowContent = namedtuple(
-    "ObservingWindowContent", ["night_start", "observing_window", "duration", "window_type"]
-)
-
-
-BlockObservingWindowContent = namedtuple(
-    "BlockObservingWindowContent", ["past_windows", "todays_windows", "remaining_windows"]
 )
 
 
 class BlockLoader(DataLoader):
-    START_OF_DAY_HOURS = 6  # 6:00 UT = 8:00 SAST
 
     def __init__(self):
         DataLoader.__init__(self, cache=False)
 
     def batch_load_fn(self, block_ids):
         return Promise.resolve(self.get_blocks(block_ids))
-
-    def start_of_day(self, timestamp, day_start_hour):
-        seconds_until_start_hour = day_start_hour * 3600
-        seconds_per_day = 24 * 3600
-        seconds_since_midnight = timestamp % seconds_per_day
-        if seconds_since_midnight >= seconds_until_start_hour:
-            # time start offset and midnight
-            return (timestamp - seconds_since_midnight) + seconds_until_start_hour
-        else:
-            # time between midnight and start offset
-            return (timestamp - seconds_since_midnight) - seconds_per_day + seconds_until_start_hour
 
     def get_blocks(self, block_ids):
         # block details
@@ -79,53 +58,9 @@ SELECT Block_Id, BlockVisit_Id
 """
         df_visits = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
 
-        # block observing windows query
-        sql = """
-        SELECT Block_Id, UNIX_TIMESTAMP(VisibilityStart) AS VisibilityStart, 
-        UNIX_TIMESTAMP(VisibilityEnd) AS VisibilityEnd, BlockVisibilityWindowType 
-        FROM BlockVisibilityWindow AS bvw
-        JOIN BlockVisibilityWindowType AS bvwt ON bvw.BlockVisibilityWindowType_Id = bvwt.BlockVisibilityWindowType_Id
-        WHERE Block_Id IN %(block_ids)s
-        ORDER BY VisibilityStart DESC
-        """
-
-        df_block_observing_windows = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
-
-        # now timestamp
-        now = int(time.time())
-        # the time today began
-        today = self.start_of_day(now, self.START_OF_DAY_HOURS)
-
         # collect details of observing windows and group them according to past, today's and remaining
         values = dict()
         for _, row in df_blocks.iterrows():
-            past_windows = set()
-            todays_windows = set()
-            remaining_windows = set()
-            for _, row1 in df_block_observing_windows.iterrows():
-                if row1["Block_Id"] == row["Block_Id"]:
-                    visibility_start = row1["VisibilityStart"]
-                    visibility_end = row1["VisibilityEnd"]
-                    window_type = row1["BlockVisibilityWindowType"]
-                    # the time night started
-                    start_of_night = self.start_of_day(visibility_start, self.START_OF_DAY_HOURS)
-                    # observing window details
-                    observing_window = ObservingWindowContent(
-                        night_start=datetime.fromtimestamp(start_of_night).strftime("%d %B %Y"),
-                        observing_window="{} - {}".format(
-                            datetime.fromtimestamp(visibility_start).strftime("%H:%M:%S"),
-                            datetime.fromtimestamp(visibility_end).strftime("%H:%M:%S")
-                        ),
-                        duration=visibility_end - visibility_start,
-                        window_type=window_type
-                    )
-                    if start_of_night < today:
-                        past_windows.add(observing_window)
-                    elif start_of_night == today:
-                        todays_windows.add(observing_window)
-                    elif start_of_night > today:
-                        remaining_windows.add(observing_window)
-
             # collect details of the block
             values[row["Block_Id"]] = dict(
                 id=row["Block_Id"],
@@ -138,20 +73,7 @@ SELECT Block_Id, BlockVisit_Id
                 length=row["ObsTime"],
                 priority=row["Priority"],
                 visits=set(),
-                observing_windows=BlockObservingWindowContent(
-                    past_windows=sorted(
-                        past_windows,
-                        key=lambda x: datetime.strptime(x[0], "%d %B %Y")
-                    ),
-                    todays_windows=sorted(
-                        todays_windows,
-                        key=lambda x: datetime.strptime(x[0], "%d %B %Y")
-                    ),
-                    remaining_windows=sorted(
-                        remaining_windows,
-                        key=lambda x: datetime.strptime(x[0], "%d %B %Y")
-                    ),
-                ),
+                observing_window=row["Block_Id"]
             )
 
         for _, row in df_visits.iterrows():
