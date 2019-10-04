@@ -261,8 +261,8 @@ class ObservingWindowType(Enum):
     @property
     def description(self):
         if self == ObservingWindowType.STRICT:
-            return "The strict observation window."
+            return "A strict observing window."
         if self == ObservingWindowType.EXTENDED:
-            return "The extended observation window."
+            return "A extended observing window."
         if self == ObservingWindowType.STRICT_EXTENDED:
-            return "The strict and extended observation window."
+            return "A strict and extended observing window."
