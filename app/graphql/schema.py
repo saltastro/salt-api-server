@@ -453,7 +453,13 @@ class Block(ObjectType):
         NonNull(lambda: BlockObservation), description="The visits of the block."
     )
 
-    observing_windows = NonNull(lambda: BlockObservingWindow, description="The block observing windows.")
+    observing_windows = Field(
+        lambda: BlockObservingWindow,
+        description="The block observing windows.",
+        window_type=NonNull(
+            lambda: ObservingWindowType, description='The observation window type such as "strict".'
+        )
+    )
 
     @property
     def description(self):
@@ -467,6 +473,9 @@ class Block(ObjectType):
 
     def resolve_visits(self, info):
         return loaders["observation_loader"].load_many(self.visits)
+
+    def resolve_observing_windows(self, info, window_type):
+        return loaders["observing_window_loader"].load((self.id, window_type))
 
 
 # observation
