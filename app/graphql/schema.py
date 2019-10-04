@@ -81,8 +81,8 @@ _PartnerSatObservationContent = namedtuple(
     "PartnerSatObservationContent", ["observation_time", "status"]
 )
 
-_WeatherDownTimeContent = namedtuple(
-    "WeatherDownTimeContent", ["science", "engineering", "lost_to_weather", "lost_to_problems", "idle"]
+_TimeBreakdownContent = namedtuple(
+    "_TimeBreakdownContent", ["science", "engineering", "lost_to_weather", "lost_to_problems", "idle"]
 )
 
 
@@ -140,15 +140,14 @@ class Query(ObjectType):
         ),
     )
 
-    weather_down_time = Field(
-        lambda: WeatherDownTime,
+    time_breakdown = Field(
+        lambda: TimeBreakdown,
         description="The weather down time",
         semester=Semester(
             description="The semester whose weather down time to be returned.",
             required=True,
         ),
     )
-
 
     def resolve_auth_token(self, info, username, password):
         # query for the user with the given credentials
@@ -291,7 +290,7 @@ SELECT DISTINCT Proposal_Code
 
         return partner_stat_observations
 
-    def resolve_weather_down_time(self, info, semester):
+    def resolve_time_breakdown(self, info, semester):
         # get the filter conditions
         params = dict()
         filters = ["(s.Year=%(year)s AND s.Semester=%(semester)s)"]
@@ -313,7 +312,7 @@ SELECT DISTINCT Proposal_Code
 
         weather_down_time = dict()
         for _, row in df.iterrows():
-            weather_down_time = _WeatherDownTimeContent(
+            weather_down_time = _TimeBreakdownContent(
                 science=row["ScienceTime"],
                 engineering=row["EngineeringTime"],
                 lost_to_weather=row["TimeLostToWeather"],
@@ -454,7 +453,7 @@ class Block(ObjectType):
         NonNull(lambda: BlockObservation), description="The visits of the block."
     )
 
-    observing_window = NonNull(lambda: BlockObservingWindow, description="The block observing windows.")
+    observing_windows = NonNull(lambda: BlockObservingWindow, description="The block observing windows.")
 
     @property
     def description(self):
@@ -468,9 +467,6 @@ class Block(ObjectType):
 
     def resolve_visits(self, info):
         return loaders["observation_loader"].load_many(self.visits)
-
-    def resolve_observing_window(self, info):
-        return loaders["observing_window_loader"].load(self.observing_window)
 
 
 # observation
@@ -602,7 +598,7 @@ class PartnerStatObservation(ObjectType):
 
 # weather down time
 
-class WeatherDownTime(ObjectType):
+class TimeBreakdown(ObjectType):
     science = NonNull(Float, description="The time used for science.")
     engineering = NonNull(Float, description="The time used for engineering.")
     lost_to_weather = NonNull(Float, description="The time lost due to weather.")

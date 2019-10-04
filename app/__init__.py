@@ -31,7 +31,6 @@ db = SQLAlchemy()
 
 from app.dataloader import (
     ObservationLoader,
-    ObservingWindowLoader,
     ProposalLoader,
     BlockLoader,
     InvestigatorLoader,
@@ -40,7 +39,6 @@ from app.dataloader import (
 loaders = {
     "proposal_loader": ProposalLoader(),
     "observation_loader": ObservationLoader(),
-    "observing_window_loader": ObservingWindowLoader(),
     "block_loader": BlockLoader(),
     "investigator_loader": InvestigatorLoader(),
 }
