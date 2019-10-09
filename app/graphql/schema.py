@@ -504,28 +504,29 @@ class BlockObservation(ObjectType):
 
 
 class ObservingWindow(ObjectType):
-    night_start = NonNull(String, description="The start of the observing window.")
+    visibility_start = NonNull(String, description="The start of the observing window.")
 
-    observing_window = NonNull(String, description="The observing window.")
+    visibility_end = NonNull(String, description="The end of the observing window.")
 
     duration = NonNull(Float, description="The observing window duration in seconds.")
 
     window_type = NonNull(
-        lambda: ObservingWindowType, description='The observation window type such as "strict".'
+        lambda: ObservingWindowType, description="The observation window type such as \'strict\'."
     )
 
 
 class BlockObservingWindow(ObjectType):
     past_windows = List(
-        NonNull(lambda: ObservingWindow), description="Past observing window."
+        NonNull(lambda: ObservingWindow), description="Past observing windows."
     )
 
     todays_windows = List(
-        NonNull(lambda: ObservingWindow), description="Today\'s observing window."
+        NonNull(lambda: ObservingWindow), description="Today\'s observing windows."
     )
 
-    remaining_windows = List(
-        NonNull(lambda: ObservingWindow), description="Remaining observing window."
+    future_windows = List(
+        NonNull(lambda: ObservingWindow),
+        description="Future observing windows. It does not include today\'s observing windows"
     )
 
 

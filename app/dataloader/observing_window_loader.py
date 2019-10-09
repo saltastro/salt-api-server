@@ -8,11 +8,11 @@ from app import db
 from datetime import datetime
 
 ObservingWindowContent = namedtuple(
-  "ObservingWindowContent", ["night_start", "observing_window", "duration", "window_type"]
+  "ObservingWindowContent", ["visibility_start", "visibility_end", "duration", "window_type"]
 )
 
 BlockObservingWindowContent = namedtuple(
-  "BlockObservingWindowContent", ["past_windows", "todays_windows", "remaining_windows"]
+  "BlockObservingWindowContent", ["past_windows", "todays_windows", "future_windows"]
 )
 
 
@@ -32,10 +32,10 @@ class ObservingWindowLoader(DataLoader):
         seconds_per_day = 24 * 3600
         seconds_since_midnight = timestamp % seconds_per_day
         if seconds_since_midnight >= seconds_until_start_hour:
-            # time start offset and midnight
+            # The day has started, and we may use today's start time.
             return (timestamp - seconds_since_midnight) + seconds_until_start_hour
         else:
-            # time between midnight and start offset
+            # The day has not started yet, and we have to use yesterdays start time
             return (timestamp - seconds_since_midnight) - seconds_per_day + seconds_until_start_hour
 
     def batch_load_fn(self, block_ids_window_types):
@@ -44,9 +44,9 @@ class ObservingWindowLoader(DataLoader):
     def get_observing_windows(self, block_ids_window_types):
         block_ids = []
         window_types = []
-        for block_id_window_type in block_ids_window_types:
-            block_ids.append(block_id_window_type[0])
-            window_types.append(block_id_window_type[1])
+        for block_id, window_type in block_ids_window_types:
+            block_ids.append(block_id)
+            window_types.append(window_type)
 
         # block observing windows query
         sql_observing_windows = """
@@ -74,21 +74,18 @@ class ObservingWindowLoader(DataLoader):
         for block_id_window_type in block_ids_window_types:
             past_windows = set()
             todays_windows = set()
-            remaining_windows = set()
+            future_windows = set()
             for _, row in df_block_observing_windows.iterrows():
                 if block_id_window_type == (row["Block_Id"], row["BlockVisibilityWindowType"]):
                     visibility_start = row["VisibilityStart"]
                     visibility_end = row["VisibilityEnd"]
                     window_type = row["BlockVisibilityWindowType"]
-                    # the time night started
+                    # the start time for the date to which this observing window belongs
                     start_of_night = self.start_of_day(visibility_start, self.START_OF_DAY_HOURS)
                     # observing window details
                     observing_window_details = ObservingWindowContent(
-                        night_start=datetime.fromtimestamp(start_of_night).strftime("%d %B %Y"),
-                        observing_window="{} - {}".format(
-                            datetime.fromtimestamp(visibility_start).strftime("%H:%M:%S"),
-                            datetime.fromtimestamp(visibility_end).strftime("%H:%M:%S")
-                        ),
+                        visibility_start=datetime.fromtimestamp(visibility_start).isoformat(),
+                        visibility_end=datetime.fromtimestamp(visibility_end).isoformat(),
                         duration=visibility_end - visibility_start,
                         window_type=window_type
                     )
@@ -97,21 +94,21 @@ class ObservingWindowLoader(DataLoader):
                     elif start_of_night == today:
                         todays_windows.add(observing_window_details)
                     elif start_of_night > today:
-                        remaining_windows.add(observing_window_details)
+                        future_windows.add(observing_window_details)
 
             # collect details of the block
             values[block_id_window_type] = dict(
                 past_windows=sorted(
                     past_windows,
-                    key=lambda x: datetime.strptime(x[0], "%d %B %Y")
+                    key=lambda x: x[0]
                 ),
                 todays_windows=sorted(
                     todays_windows,
-                    key=lambda x: datetime.strptime(x[0], "%d %B %Y")
+                    key=lambda x: x[0]
                 ),
-                remaining_windows=sorted(
-                    remaining_windows,
-                    key=lambda x: datetime.strptime(x[0], "%d %B %Y")
+                future_windows=sorted(
+                    future_windows,
+                    key=lambda x: x[0]
                 ),
             )
 

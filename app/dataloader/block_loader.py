@@ -25,8 +25,6 @@ BlockContent = namedtuple(
 
 
 class BlockLoader(DataLoader):
-    START_OF_DAY_HOURS = 6  # 6:00 UT = 8:00 SAST
-
     def __init__(self):
         DataLoader.__init__(self, cache=False)
 
@@ -71,6 +69,10 @@ SELECT Block_Id, BlockVisit_Id
                 length=row["ObsTime"],
                 priority=row["Priority"],
                 visits=set(),
+                # The observing windows depend on the block id as well as the window type.
+                # The latter is passed as argument when requesting observing windows.
+                # We use the block id as the observing windows value so that
+                # it can be picked up by the resolver function for observing windows later on.
                 observing_windows=row["Block_Id"]
             )
 

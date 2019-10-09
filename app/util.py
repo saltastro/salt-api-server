@@ -261,8 +261,9 @@ class ObservingWindowType(Enum):
     @property
     def description(self):
         if self == ObservingWindowType.STRICT:
-            return "A strict observing window."
+            return "A strict observing window. The Moon condition is met during the window."
         if self == ObservingWindowType.EXTENDED:
-            return "A extended observing window."
+            return "An extended observing window. The Moon condition is brighter than requested during the window."
         if self == ObservingWindowType.STRICT_EXTENDED:
-            return "A strict and extended observing window."
+            return "Both strict and extended observing window. The Moon condition is met in part of the window, " \
+                   "but a brighter than requested condition applies in the other part. "
