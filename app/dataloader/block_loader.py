@@ -54,7 +54,7 @@ SELECT Block_Id, BlockVisit_Id
 """
         df_visits = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
 
-        # collect details of observing windows and group them according to past, today's and remaining
+        # collect details of observing windows and group them according to past, tonight's and remaining
         values = dict()
         for _, row in df_blocks.iterrows():
             # collect details of the block

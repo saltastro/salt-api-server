@@ -77,12 +77,12 @@ _PartnerTimeShareContent = namedtuple(
     "PartnerTimeShareContent", ["partner_code", "share_percent", "semester"]
 )
 
-_PartnerSatObservationContent = namedtuple(
-    "PartnerSatObservationContent", ["observation_time", "status"]
+_PartnerStatObservationContent = namedtuple(
+    "PartnerStatObservationContent", ["observation_time", "status"]
 )
 
 _TimeBreakdownContent = namedtuple(
-    "_TimeBreakdownContent", ["science", "engineering", "lost_to_weather", "lost_to_problems", "idle"]
+    "TimeBreakdownContent", ["science", "engineering", "lost_to_weather", "lost_to_problems", "idle"]
 )
 
 
@@ -103,11 +103,11 @@ class Query(ObjectType):
         lambda: List(Proposal),
         description="A list of SALT proposals.",
         partner_code=PartnerCode(
-            description="The partner whose proposals should be returned.",
+            description="The partner whose proposals are returned.",
             required=False,
         ),
         semester=Semester(
-            description="The semester whose proposals should be returned.",
+            description="The semester whose proposals are returned.",
             required=False,
         ),
     )
@@ -120,13 +120,13 @@ class Query(ObjectType):
 
     partner_share_times = Field(
         lambda: List(PartnerTimeShare),
-        description="A list of time share allocated to a partner, in percent.",
+        description="Partner time shares.",
         partner_code=PartnerCode(
-            description="The partner whose time shares should be returned.",
+            description="The partner whose time shares are returned.",
             required=False,
         ),
         semester=Semester(
-            description="The semester whose time shares to be returned.",
+            description="The semester whose time shares are returned.",
             required=False,
         ),
     )
@@ -135,7 +135,7 @@ class Query(ObjectType):
         lambda: List(PartnerStatObservation),
         description="A list of observation times, in seconds",
         semester=Semester(
-            description="The semester whose observation times to be returned.",
+            description="The semester whose observation times are returned.",
             required=True,
         ),
     )
@@ -144,7 +144,7 @@ class Query(ObjectType):
         lambda: TimeBreakdown,
         description="The weather down time",
         semester=Semester(
-            description="The semester whose weather down time to be returned.",
+            description="The semester whose time breakdown are returned.",
             required=True,
         ),
     )
@@ -283,7 +283,7 @@ SELECT DISTINCT Proposal_Code
 
         partner_stat_observations = []
         for _, row in df.iterrows():
-            partner_stat_observations.append(_PartnerSatObservationContent(
+            partner_stat_observations.append(_PartnerStatObservationContent(
                 observation_time=row["ObsTime"],
                 status=row["BlockVisitStatus"]
             ))
@@ -297,7 +297,7 @@ SELECT DISTINCT Proposal_Code
         params["year"] = semester.year
         params["semester"] = semester.semester
 
-        # query for the weather down time
+        # query for the time breakdown
         sql = """SELECT SUM(ScienceTime) AS ScienceTime, SUM(EngineeringTime) AS EngineeringTime, 
         SUM(TimeLostToWeather) AS TimeLostToWeather, SUM(TimeLostToProblems) AS TimeLostToProblems, 
         SUM(IdleTime) AS IdleTime   
@@ -310,17 +310,17 @@ SELECT DISTINCT Proposal_Code
 
         df = pd.read_sql(sql, con=db.engine, params=params)
 
-        weather_down_time = dict()
+        time_breakdown = []
         for _, row in df.iterrows():
-            weather_down_time = _TimeBreakdownContent(
+            time_breakdown.append(_TimeBreakdownContent(
                 science=row["ScienceTime"],
                 engineering=row["EngineeringTime"],
                 lost_to_weather=row["TimeLostToWeather"],
                 lost_to_problems=row["TimeLostToProblems"],
                 idle=row["IdleTime"],
-            )
+            ))
 
-        return weather_down_time
+        return time_breakdown
 
 
 # authentication token
@@ -367,7 +367,7 @@ class Proposal(ObjectType):
         description="The reason why the proposal is inactive."
     )
 
-    transparency = NonNull(String, description="The proposal transparency.")
+    transparency = NonNull(String, description="The sky transparency.")
 
     completion_comments = List(
         lambda: CompletionComment,
@@ -520,13 +520,13 @@ class BlockObservingWindow(ObjectType):
         NonNull(lambda: ObservingWindow), description="Past observing windows."
     )
 
-    todays_windows = List(
-        NonNull(lambda: ObservingWindow), description="Today\'s observing windows."
+    tonights_windows = List(
+        NonNull(lambda: ObservingWindow), description="Tonight\'s observing windows."
     )
 
     future_windows = List(
         NonNull(lambda: ObservingWindow),
-        description="Future observing windows. It does not include today\'s observing windows"
+        description="Future observing windows. It does not include tonight\'s observing windows"
     )
 
 
@@ -606,7 +606,7 @@ class PartnerStatObservation(ObjectType):
         return self.observation_time
 
 
-# weather down time
+# time breakdown
 
 class TimeBreakdown(ObjectType):
     science = NonNull(Float, description="The time used for science.")

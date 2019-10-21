@@ -12,7 +12,7 @@ ObservingWindowContent = namedtuple(
 )
 
 BlockObservingWindowContent = namedtuple(
-  "BlockObservingWindowContent", ["past_windows", "todays_windows", "future_windows"]
+  "BlockObservingWindowContent", ["past_windows", "tonights_windows", "future_windows"]
 )
 
 
@@ -35,18 +35,18 @@ class ObservingWindowLoader(DataLoader):
             # The day has started, and we may use today's start time.
             return (timestamp - seconds_since_midnight) + seconds_until_start_hour
         else:
-            # The day has not started yet, and we have to use yesterdays start time
+            # The day has not started yet, and we have to use yesterday's start time
             return (timestamp - seconds_since_midnight) - seconds_per_day + seconds_until_start_hour
 
     def batch_load_fn(self, block_ids_window_types):
         return Promise.resolve(self.get_observing_windows(block_ids_window_types))
 
     def get_observing_windows(self, block_ids_window_types):
-        block_ids = []
-        window_types = []
+        block_ids = set()
+        window_types = set()
         for block_id, window_type in block_ids_window_types:
-            block_ids.append(block_id)
-            window_types.append(window_type)
+            block_ids.add(block_id)
+            window_types.add(window_type)
 
         # block observing windows query
         sql_observing_windows = """
@@ -73,7 +73,7 @@ class ObservingWindowLoader(DataLoader):
         values = dict()
         for block_id_window_type in block_ids_window_types:
             past_windows = set()
-            todays_windows = set()
+            tonights_windows = set()
             future_windows = set()
             for _, row in df_block_observing_windows.iterrows():
                 if block_id_window_type == (row["Block_Id"], row["BlockVisibilityWindowType"]):
@@ -92,7 +92,7 @@ class ObservingWindowLoader(DataLoader):
                     if start_of_night < today:
                         past_windows.add(observing_window_details)
                     elif start_of_night == today:
-                        todays_windows.add(observing_window_details)
+                        tonights_windows.add(observing_window_details)
                     elif start_of_night > today:
                         future_windows.add(observing_window_details)
 
@@ -102,8 +102,8 @@ class ObservingWindowLoader(DataLoader):
                     past_windows,
                     key=lambda x: x[0]
                 ),
-                todays_windows=sorted(
-                    todays_windows,
+                tonights_windows=sorted(
+                    tonights_windows,
                     key=lambda x: x[0]
                 ),
                 future_windows=sorted(
