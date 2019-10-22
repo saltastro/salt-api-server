@@ -28,7 +28,6 @@ ProposalContent = namedtuple(
         "blocks",
         "observations",
         "time_allocations",
-        "transparency",
         "requested_times"
     ],
 )
@@ -61,7 +60,7 @@ class ProposalLoader(DataLoader):
         # general proposal info
         sql = """
 SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason,
-       Leader_Id, Contact_Id, Astronomer_Id, Transparency
+       Leader_Id, Contact_Id, Astronomer_Id
        FROM Proposal AS p
        JOIN ProposalCode AS pc ON p.ProposalCode_Id = pc.ProposalCode_Id
        JOIN ProposalText AS pt ON p.ProposalCode_Id = pt.ProposalCode_Id
@@ -69,7 +68,6 @@ SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
        JOIN ProposalStatus AS ps ON pgi.ProposalStatus_Id = ps.ProposalStatus_Id
        JOIN ProposalType AS type ON pgi.ProposalType_Id = type.ProposalType_Id
        JOIN P1ObservingConditions AS p1o ON p1o.ProposalCode_Id = p.ProposalCode_Id
-       JOIN Transparency AS t ON p1o.Transparency_Id = t.Transparency_Id
        LEFT JOIN ProposalInactiveReason AS pir
                  ON pgi.ProposalInactiveReason_Id = pir.ProposalInactiveReason_Id
        JOIN ProposalContact contact ON pc.ProposalCode_Id = contact.ProposalCode_Id
@@ -100,7 +98,6 @@ SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
                 completion_comments=set(),
                 principal_investigator=row["Leader_Id"],
                 principal_contact=row["Contact_Id"],
-                transparency=row["Transparency"],
                 liaison_astronomer=liaison_astronomer,
                 blocks=set(),
                 observations=set(),

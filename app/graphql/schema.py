@@ -189,7 +189,6 @@ SELECT DISTINCT Proposal_Code
        JOIN Institute AS institute ON i.Institute_Id = institute.Institute_Id
        JOIN Partner AS partner ON institute.Partner_Id = partner.Partner_Id
        JOIN P1ObservingConditions AS p1o ON p1o.ProposalCode_Id = p.ProposalCode_Id
-       JOIN Transparency AS t ON p1o.Transparency_Id = t.Transparency_Id
        WHERE {where}
 """.format(
             where=" AND ".join(filters)
@@ -309,10 +308,11 @@ SELECT DISTINCT Proposal_Code
         )
 
         df = pd.read_sql(sql, con=db.engine, params=params)
-        time_breakdown = dict()
 
-        if df.empty:
-            return time_breakdown
+        if df["ScienceTime"][0] is None:
+            raise Exception(
+                "There are no time breakdowns available for the semester {}-{}".format(semester.year, semester.semester)
+            )
 
         time_breakdown = _TimeBreakdownContent(
             science=df["ScienceTime"][0],
@@ -368,8 +368,6 @@ class Proposal(ObjectType):
     inactive_reason = ProposalInactiveReason(
         description="The reason why the proposal is inactive."
     )
-
-    transparency = NonNull(String, description="The sky transparency.")
 
     completion_comments = List(
         lambda: CompletionComment,
