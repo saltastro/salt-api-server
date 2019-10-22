@@ -309,16 +309,18 @@ SELECT DISTINCT Proposal_Code
         )
 
         df = pd.read_sql(sql, con=db.engine, params=params)
+        time_breakdown = dict()
 
-        time_breakdown = []
-        for _, row in df.iterrows():
-            time_breakdown.append(_TimeBreakdownContent(
-                science=row["ScienceTime"],
-                engineering=row["EngineeringTime"],
-                lost_to_weather=row["TimeLostToWeather"],
-                lost_to_problems=row["TimeLostToProblems"],
-                idle=row["IdleTime"],
-            ))
+        if df.empty:
+            return time_breakdown
+
+        time_breakdown = _TimeBreakdownContent(
+            science=df["ScienceTime"][0],
+            engineering=df["EngineeringTime"][0],
+            lost_to_weather=df["TimeLostToWeather"][0],
+            lost_to_problems=df["TimeLostToProblems"][0],
+            idle=df["IdleTime"][0],
+        )
 
         return time_breakdown
 
