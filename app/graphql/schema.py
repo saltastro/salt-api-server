@@ -311,7 +311,7 @@ SELECT DISTINCT Proposal_Code
 
         if df["ScienceTime"][0] is None:
             raise Exception(
-                "There are no time breakdowns available for the semester {}-{}".format(semester.year, semester.semester)
+                "There are no time breakdown available for the semester {}-{}".format(semester.year, semester.semester)
             )
 
         time_breakdown = _TimeBreakdownContent(
@@ -398,9 +398,6 @@ class Proposal(ObjectType):
 
     def resolve_title(self, info):
         return self.title
-
-    def resolve_transparency(self, info):
-        return self.transparency
 
     def resolve_principal_investigator(self, info):
         return loaders["investigator_loader"].load(self.principal_investigator)
@@ -526,7 +523,7 @@ class BlockObservingWindow(ObjectType):
 
     future_windows = List(
         NonNull(lambda: ObservingWindow),
-        description="Future observing windows. It does not include tonight\'s observing windows"
+        description="Future observing windows, excluding any observing windows for tonight."
     )
 
 
