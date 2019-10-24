@@ -14,6 +14,7 @@ from graphene import (
     NonNull,
     ObjectType,
     String,
+    Float,
 )
 from graphene.types import Date, DateTime, Scalar
 from graphene_file_upload.scalars import Upload
@@ -25,6 +26,7 @@ from app import loaders
 from app.util import (
     BlockStatus,
     ObservationStatus,
+    ObservingWindowType,
     PartnerCode,
     ProposalInactiveReason,
     ProposalStatus,
@@ -34,7 +36,6 @@ from app.util import (
 
 
 # semester
-
 
 class Semester(Scalar):
     """A proposal semester, such as \"2018-2\" or \"2019-1\"."""
@@ -72,6 +73,18 @@ class Semester(Scalar):
 
 _TokenContent = namedtuple("TokenContent", ["token"])
 
+_PartnerTimeShareContent = namedtuple(
+    "PartnerTimeShareContent", ["partner_code", "share_percent", "semester"]
+)
+
+_PartnerStatObservationContent = namedtuple(
+    "PartnerStatObservationContent", ["observation_time", "status"]
+)
+
+_TimeBreakdownContent = namedtuple(
+    "TimeBreakdownContent", ["science", "engineering", "lost_to_weather", "lost_to_problems", "idle"]
+)
+
 
 def _check_auth_token():
     if "Authorization" not in request.headers or not g.user:
@@ -90,11 +103,11 @@ class Query(ObjectType):
         lambda: List(Proposal),
         description="A list of SALT proposals.",
         partner_code=PartnerCode(
-            description="The partner whose proposals should be returned.",
+            description="The partner whose proposals are returned.",
             required=False,
         ),
         semester=Semester(
-            description="The semester whose proposals should be returned.",
+            description="The semester whose proposals are returned.",
             required=False,
         ),
     )
@@ -103,6 +116,37 @@ class Query(ObjectType):
         lambda: Proposal,
         description="A SALT proposal.",
         proposal_code=NonNull(String, description="The proposal code."),
+    )
+
+    partner_share_times = Field(
+        lambda: List(PartnerTimeShare),
+        description="Partner time shares.",
+        partner_code=PartnerCode(
+            description="The partner whose time shares are returned.",
+            required=False,
+        ),
+        semester=Semester(
+            description="The semester whose time shares are returned.",
+            required=False,
+        ),
+    )
+
+    partner_stat_observations= Field(
+        lambda: List(PartnerStatObservation),
+        description="A list of observation times, in seconds",
+        semester=Semester(
+            description="The semester whose observation times are returned.",
+            required=True,
+        ),
+    )
+
+    time_breakdown = Field(
+        lambda: TimeBreakdown,
+        description="The weather down time",
+        semester=Semester(
+            description="The semester whose time breakdown are returned.",
+            required=True,
+        ),
     )
 
     def resolve_auth_token(self, info, username, password):
@@ -144,6 +188,7 @@ SELECT DISTINCT Proposal_Code
        JOIN Investigator AS i ON pi.Investigator_Id = i.Investigator_Id
        JOIN Institute AS institute ON i.Institute_Id = institute.Institute_Id
        JOIN Partner AS partner ON institute.Partner_Id = partner.Partner_Id
+       JOIN P1ObservingConditions AS p1o ON p1o.ProposalCode_Id = p.ProposalCode_Id
        WHERE {where}
 """.format(
             where=" AND ".join(filters)
@@ -173,9 +218,114 @@ SELECT DISTINCT Proposal_Code
 
         return loaders["proposal_loader"].load(proposal_code)
 
+    def resolve_partner_share_times(self, info, partner_code=None, semester=None):
+        # get the filter conditions
+        params = dict()
+        filters = []
+        if partner_code:
+            filters.append("partner.Partner_Code=%(partner_code)s")
+            params["partner_code"] = partner_code
+
+        if semester:
+            filters.append("(s.Year=%(year)s AND s.Semester=%(semester)s)")
+            params["year"] = semester.year
+            params["semester"] = semester.semester
+
+        if len(filters):
+            # query for the partner time shares according to the semester or partner code
+            sql = """SELECT Partner_Code, SharePercent, Year, Semester
+           FROM PartnerShareTimeDist AS pst
+           JOIN Semester AS s ON pst.Semester_Id = s.Semester_Id
+           JOIN Partner AS partner ON pst.Partner_Id = partner.Partner_Id
+           WHERE {where}
+           """.format(
+                where=" AND ".join(filters)
+            )
+        else:
+            sql = """SELECT Partner_Code, SharePercent, Year, Semester
+           FROM PartnerShareTimeDist
+           JOIN Semester using(Semester_Id)
+           JOIN Partner using(Partner_Id)
+           """
+
+        df = pd.read_sql(sql, con=db.engine, params=params)
+
+        partner_time_shares = []
+        for _, row in df.iterrows():
+            partner_time_shares.append(_PartnerTimeShareContent(
+                semester=_SemesterContent(year=row["Year"], semester=row["Semester"]),
+                partner_code=row["Partner_Code"],
+                share_percent=row["SharePercent"],
+            ))
+
+        return partner_time_shares
+
+    def resolve_partner_stat_observations(self, info, semester):
+        # get the filter conditions
+        params = dict()
+        filters = ["(s.Year=%(year)s AND s.Semester=%(semester)s)"]
+        params["year"] = semester.year
+        params["semester"] = semester.semester
+
+        # query for the observation times
+        sql = """SELECT ObsTime, BlockVisitStatus FROM Proposal AS p
+        JOIN Block AS b ON b.Proposal_Id = p.Proposal_Id
+        JOIN BlockVisit AS bv ON bv.Block_Id = b.Block_Id
+        JOIN Semester AS s ON s.Semester_Id = p.Semester_Id
+        JOIN BlockVisitStatus AS bvs ON bvs.BlockVisitStatus_Id = bv.BlockVisitStatus_Id
+        WHERE {where}
+        """.format(
+            where=" AND ".join(filters)
+        )
+
+        df = pd.read_sql(sql, con=db.engine, params=params)
+
+        partner_stat_observations = []
+        for _, row in df.iterrows():
+            partner_stat_observations.append(_PartnerStatObservationContent(
+                observation_time=row["ObsTime"],
+                status=row["BlockVisitStatus"]
+            ))
+
+        return partner_stat_observations
+
+    def resolve_time_breakdown(self, info, semester):
+        # get the filter conditions
+        params = dict()
+        filters = ["(s.Year=%(year)s AND s.Semester=%(semester)s)"]
+        params["year"] = semester.year
+        params["semester"] = semester.semester
+
+        # query for the time breakdown
+        sql = """SELECT SUM(ScienceTime) AS ScienceTime, SUM(EngineeringTime) AS EngineeringTime, 
+        SUM(TimeLostToWeather) AS TimeLostToWeather, SUM(TimeLostToProblems) AS TimeLostToProblems, 
+        SUM(IdleTime) AS IdleTime   
+        FROM NightInfo AS ni
+        JOIN Semester AS s ON (ni.Date >= s.StartSemester AND ni.Date <= s.EndSemester)
+        WHERE {where}
+        """.format(
+            where=" AND ".join(filters)
+        )
+
+        df = pd.read_sql(sql, con=db.engine, params=params)
+
+        if df["ScienceTime"][0] is None:
+            raise GraphQLError(
+                "There is no time breakdown available for the semester {}-{}.".format(semester.year, semester.semester)
+            )
+
+        time_breakdown = _TimeBreakdownContent(
+            science=df["ScienceTime"][0],
+            engineering=df["EngineeringTime"][0],
+            lost_to_weather=df["TimeLostToWeather"][0],
+            lost_to_problems=df["TimeLostToProblems"][0],
+            idle=df["IdleTime"][0],
+        )
+
+        return time_breakdown
+
 
 # authentication token
-
 
 class AuthToken(ObjectType):
     @property
@@ -192,7 +342,6 @@ form "Token {token}", where {token} is the JWT token."""  # noqa
 
 # person
 
-
 class Person(ObjectType):
     given_name = NonNull(String, description="The given name(s).")
 
@@ -202,7 +351,6 @@ class Person(ObjectType):
 
 
 # proposal
-
 
 class Proposal(ObjectType):
     proposal_code = NonNull(
@@ -271,7 +419,6 @@ class Proposal(ObjectType):
 
 # block
 
-
 class Block(ObjectType):
     id = NonNull(ID, description="The unique block id.")
 
@@ -303,6 +450,14 @@ class Block(ObjectType):
         NonNull(lambda: BlockObservation), description="The visits of the block."
     )
 
+    observing_windows = Field(
+        lambda: BlockObservingWindow,
+        description="The block observing windows.",
+        window_type=NonNull(
+            lambda: ObservingWindowType, description='The observation window type such as "strict".'
+        )
+    )
+
     @property
     def description(self):
         return "THe smallest schedulable unit in a proposal."
@@ -316,9 +471,11 @@ class Block(ObjectType):
     def resolve_visits(self, info):
         return loaders["observation_loader"].load_many(self.visits)
 
+    def resolve_observing_windows(self, info, window_type):
+        return loaders["observing_window_loader"].load((self.id, window_type))
+
 
 # observation
-
 
 class Observation(Interface):
     night = NonNull(Date, description="The night when the observation was taken.")
@@ -341,6 +498,33 @@ class BlockObservation(ObjectType):
     @property
     def description(self):
         return "An observation of a block."
+
+
+class ObservingWindow(ObjectType):
+    visibility_start = NonNull(String, description="The start of the observing window.")
+
+    visibility_end = NonNull(String, description="The end of the observing window.")
+
+    duration = NonNull(Float, description="The observing window duration in seconds.")
+
+    window_type = NonNull(
+        lambda: ObservingWindowType, description="The observation window type such as \'strict\'."
+    )
+
+
+class BlockObservingWindow(ObjectType):
+    past_windows = List(
+        NonNull(lambda: ObservingWindow), description="Past observing windows."
+    )
+
+    tonights_windows = List(
+        NonNull(lambda: ObservingWindow), description="Tonight\'s observing windows."
+    )
+
+    future_windows = List(
+        NonNull(lambda: ObservingWindow),
+        description="Future observing windows, excluding any observing windows for tonight."
+    )
 
 
 class ProposalObservation(ObjectType):
@@ -371,10 +555,10 @@ class TimeAllocation(ObjectType):
     )
 
     partner_code = NonNull(
-        lambda: PartnerCode, description="The partber who has made the time allocation."
+        lambda: PartnerCode, description="The partner who has made the time allocation."
     )
 
-    amount = NonNull(Int, description="The amount of allocatedv time, in seconds.")
+    amount = NonNull(Int, description="The amount of allocated time, in seconds.")
 
 
 # completion comment
@@ -388,8 +572,67 @@ class CompletionComment(ObjectType):
     comment = String(description="The comment regarding proposal completion.")
 
 
-# mutations
+# partner time share
 
+
+class PartnerTimeShare(ObjectType):
+    partner_code = NonNull(String, description="The partner code.")
+
+    share_percent = NonNull(Float, description="The time share, in percent.")
+
+    semester = NonNull(
+        lambda: Semester, description="The semester for the partner time share."
+    )
+
+    def resolve_partner_code(self, info):
+        return self.partner_code
+
+    def resolve_share_percent(self, info):
+        return self.share_percent
+
+
+# all observation for partner stat
+
+class PartnerStatObservation(ObjectType):
+    observation_time = NonNull(Float, description="Observation time, in seconds")
+    status = NonNull(
+        lambda: ObservationStatus, description="The status of the observation."
+    )
+
+    def resolve_observation(self, info):
+        return self.observation_time
+
+
+# time breakdown
+
+class TimeBreakdown(ObjectType):
+    science = NonNull(Float, description="The time used for science.")
+    engineering = NonNull(Float, description="The time used for engineering.")
+    lost_to_weather = NonNull(Float, description="The time lost due to weather.")
+    lost_to_problems = NonNull(Float, description="The time lost due to problems.")
+    idle = NonNull(Float, description="The time lost on doing nothing.")
+
+    semester = NonNull(
+        lambda: Semester, description="The semester for the partner time share."
+    )
+
+    def resolve_science(self, info):
+        return self.science
+
+    def resolve_engineering(self, info):
+        return self.engineering
+
+    def resolve_lost_to_weather(self, info):
+        return self.lost_to_weather
+
+    def resolve_lost_to_problems(self, info):
+        return self.lost_to_problems
+
+    def resolve_idle(self, info):
+        return self.idle
+
+
+# mutations
 
 class PutBlockOnHold(Mutation):
     class Arguments:

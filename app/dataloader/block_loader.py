@@ -6,7 +6,6 @@ from graphql import GraphQLError
 from app import db
 from app.util import _SemesterContent, BlockStatus
 
-
 BlockContent = namedtuple(
     "BlockContent",
     [
@@ -20,6 +19,7 @@ BlockContent = namedtuple(
         "length",
         "priority",
         "visits",
+        "observing_windows"
     ],
 )
 
@@ -54,9 +54,10 @@ SELECT Block_Id, BlockVisit_Id
 """
         df_visits = pd.read_sql(sql, con=db.engine, params=dict(block_ids=block_ids))
 
-        # collect the values
+        # collect details of observing windows and group them according to past, tonight's and remaining
         values = dict()
         for _, row in df_blocks.iterrows():
+            # collect details of the block
             values[row["Block_Id"]] = dict(
                 id=row["Block_Id"],
                 block_code=row["BlockCode"],
@@ -68,7 +69,13 @@ SELECT Block_Id, BlockVisit_Id
                 length=row["ObsTime"],
                 priority=row["Priority"],
                 visits=set(),
+                # The observing windows depend on the block id as well as the window type.
+                # The latter is passed as argument when requesting observing windows.
+                # We use the block id as the observing windows value so that
+                # it can be picked up by the resolver function for observing windows later on.
+                observing_windows=row["Block_Id"]
             )
+
         for _, row in df_visits.iterrows():
             values[row["Block_Id"]]["visits"].add(row["BlockVisit_Id"].item())
 

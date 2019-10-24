@@ -249,3 +249,21 @@ class ObservationStatus(Enum):
             return "The observation has been deleted."
 
         return "This is an undocumented observation status."
+
+
+# observing window type
+
+class ObservingWindowType(Enum):
+    STRICT = "Strict"
+    EXTENDED = "Extended"
+    STRICT_EXTENDED = "Strict+Extended"
+
+    @property
+    def description(self):
+        if self == ObservingWindowType.STRICT:
+            return "A strict observing window. The Moon has the requested brightness during the window."
+        if self == ObservingWindowType.EXTENDED:
+            return "An extended observing window. The Moon brightness is greater than requested during the window."
+        if self == ObservingWindowType.STRICT_EXTENDED:
+            return "A strict and extended observing window. The Moon has the requested brightness in part of the " \
+                   "window, but is brighter in another part. "
