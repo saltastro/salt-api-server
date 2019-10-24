@@ -28,11 +28,20 @@ ProposalContent = namedtuple(
         "blocks",
         "observations",
         "time_allocations",
+        "requested_times"
     ],
 )
 
 TimeAllocationContent = namedtuple(
     "TimeAllocation", ["priority", "semester", "partner_code", "amount"]
+)
+
+RequestedTimeContent = namedtuple(
+    "RequestedTime", ["minimum_useful_time", "semester", "partner_time"]
+)
+
+TimeRequestContent = namedtuple(
+    "TimeRequest", ["partner_code", "time"]
 )
 
 CompletionCommentContent = namedtuple(
@@ -58,6 +67,7 @@ SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
        JOIN ProposalGeneralInfo AS pgi ON p.ProposalCode_Id = pgi.ProposalCode_Id
        JOIN ProposalStatus AS ps ON pgi.ProposalStatus_Id = ps.ProposalStatus_Id
        JOIN ProposalType AS type ON pgi.ProposalType_Id = type.ProposalType_Id
+       JOIN P1ObservingConditions AS p1o ON p1o.ProposalCode_Id = p.ProposalCode_Id
        LEFT JOIN ProposalInactiveReason AS pir
                  ON pgi.ProposalInactiveReason_Id = pir.ProposalInactiveReason_Id
        JOIN ProposalContact contact ON pc.ProposalCode_Id = contact.ProposalCode_Id
@@ -80,6 +90,7 @@ SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
                 proposal_code=row["Proposal_Code"],
                 title=row["Title"],
                 time_allocations=set(),
+                requested_times=set(),
                 proposal_type=ProposalType.get(row["ProposalType"]),
                 status=ProposalStatus.get(row["Status"]),
                 status_comment=row["StatusComment"],
@@ -145,8 +156,8 @@ SELECT Proposal_Code, Priority, Year, Semester, Partner_Code, TimeAlloc
        FROM PriorityAlloc AS pa
        JOIN MultiPartner AS mp ON pa.MultiPartner_Id = mp.MultiPartner_Id
        JOIN Partner AS p ON mp.Partner_Id = p.Partner_Id
-       JOIN Semester ON mp.Semester_Id = Semester.Semester_Id
-       JOIN ProposalCode ON mp.ProposalCode_Id = ProposalCode.ProposalCode_Id
+       JOIN Semester AS s ON mp.Semester_Id = s.Semester_Id
+       JOIN ProposalCode AS pc ON mp.ProposalCode_Id = pc.ProposalCode_Id
        WHERE Proposal_Code IN %(proposal_codes)s AND TimeAlloc>0
 """
         df_time_alloc = pd.read_sql(
