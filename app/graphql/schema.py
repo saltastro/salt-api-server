@@ -310,8 +310,8 @@ SELECT DISTINCT Proposal_Code
         df = pd.read_sql(sql, con=db.engine, params=params)
 
         if df["ScienceTime"][0] is None:
-            raise Exception(
-                "There are no time breakdown available for the semester {}-{}".format(semester.year, semester.semester)
+            raise GraphQLError(
+                "There is no time breakdown available for the semester {}-{}.".format(semester.year, semester.semester)
             )
 
         time_breakdown = _TimeBreakdownContent(
