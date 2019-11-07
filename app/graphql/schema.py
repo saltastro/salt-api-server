@@ -309,17 +309,12 @@ SELECT DISTINCT Proposal_Code
 
         df = pd.read_sql(sql, con=db.engine, params=params)
 
-        if df["ScienceTime"][0] is None:
-            raise GraphQLError(
-                "There is no time breakdown available for the semester {}-{}.".format(semester.year, semester.semester)
-            )
-
         time_breakdown = _TimeBreakdownContent(
-            science=df["ScienceTime"][0],
-            engineering=df["EngineeringTime"][0],
-            lost_to_weather=df["TimeLostToWeather"][0],
-            lost_to_problems=df["TimeLostToProblems"][0],
-            idle=df["IdleTime"][0],
+            science=0 if pd.isnull(df["ScienceTime"][0]) else df["ScienceTime"][0],
+            engineering=0 if pd.isnull(df["EngineeringTime"][0]) else df["EngineeringTime"][0],
+            lost_to_weather=0 if pd.isnull(df["TimeLostToWeather"][0]) else df["TimeLostToWeather"][0],
+            lost_to_problems=0 if pd.isnull(df["TimeLostToProblems"][0]) else df["TimeLostToProblems"][0],
+            idle=0 if pd.isnull(df["IdleTime"][0]) else df["IdleTime"][0],
         )
 
         return time_breakdown
