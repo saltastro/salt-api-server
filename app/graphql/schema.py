@@ -91,6 +91,38 @@ def _check_auth_token():
         raise GraphQLError("A valid authentication token is required.")
 
 
+def find_proposals_allocated_time(params, filters):
+    allocated_time_sql = """
+SELECT DISTINCT Proposal_Code
+FROM MultiPartner
+    JOIN PriorityAlloc USING (MultiPartner_Id)
+    JOIN Semester AS s USING (Semester_Id)
+    JOIN Partner AS partner USING (Partner_Id)
+    JOIN ProposalCode USING (ProposalCode_Id)
+WHERE {where}
+    """.format(where=" AND ".join(filters))
+    results = pd.read_sql(allocated_time_sql, con=db.engine, params=params)
+    return results
+
+
+def find_proposals_submitted(params, filters):
+    filters.append('Current = 1 AND Status NOT IN ("Deleted")')
+    submitted_sql = """
+SELECT DISTINCT Proposal_Code
+FROM Proposal
+    JOIN ProposalCode USING(ProposalCode_Id)
+    JOIN ProposalGeneralInfo USING (ProposalCode_Id)
+    JOIN ProposalStatus USING (ProposalStatus_Id)
+    JOIN Semester AS s USING (Semester_Id)
+    JOIN MultiPartner USING(ProposalCode_Id)
+    JOIN Partner AS partner ON (MultiPartner.Partner_Id = partner.Partner_Id)
+WHERE {where}
+    """.format(where=" AND ".join(filters))
+    results = pd.read_sql(submitted_sql, con=db.engine, params=params)
+
+    return results
+
+
 class Query(ObjectType):
     auth_token = Field(
         lambda: AuthToken,
@@ -131,7 +163,7 @@ class Query(ObjectType):
         ),
     )
 
-    partner_stat_observations= Field(
+    partner_stat_observations = Field(
         lambda: List(PartnerStatObservation),
         description="A list of observation times, in seconds",
         semester=Semester(
@@ -169,7 +201,7 @@ class Query(ObjectType):
     def resolve_proposals(self, info, partner_code=None, semester=None):
         # get the filter conditions
         params = dict()
-        filters = ["p.Current=1"]
+        filters = []
         if partner_code:
             filters.append("partner.Partner_Code=%(partner_code)s")
             params["partner_code"] = partner_code
@@ -178,22 +210,9 @@ class Query(ObjectType):
             params["year"] = semester.year
             params["semester"] = semester.semester
 
-        # get all proposals (irrespective of user permissions)
-        sql = """
-SELECT DISTINCT Proposal_Code
-       FROM ProposalCode AS pc
-       JOIN Proposal AS p ON pc.ProposalCode_Id = p.ProposalCode_Id
-       JOIN Semester AS s ON p.Semester_Id = s.Semester_Id
-       JOIN ProposalInvestigator AS pi ON pc.ProposalCode_Id = pi.ProposalCode_Id
-       JOIN Investigator AS i ON pi.Investigator_Id = i.Investigator_Id
-       JOIN Institute AS institute ON i.Institute_Id = institute.Institute_Id
-       JOIN Partner AS partner ON institute.Partner_Id = partner.Partner_Id
-       JOIN P1ObservingConditions AS p1o ON p1o.ProposalCode_Id = p.ProposalCode_Id
-       WHERE {where}
-""".format(
-            where=" AND ".join(filters)
-        )
-        df = pd.read_sql(sql, con=db.engine, params=params)
+        df_of_proposals_allocated_time = find_proposals_allocated_time(params, filters)
+        df_of_proposals_submitted = find_proposals_submitted(params, filters)
+        df = pd.concat([df_of_proposals_allocated_time, df_of_proposals_submitted], ignore_index=True).drop_duplicates()
 
         all_proposal_codes = df["Proposal_Code"].tolist()
 
