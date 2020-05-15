@@ -91,7 +91,7 @@ def _check_auth_token():
         raise GraphQLError("A valid authentication token is required.")
 
 
-def find_proposals_allocated_time(params, filters):
+def find_proposals_with_time_allocation(params, filters):
     allocated_time_sql = """
 SELECT DISTINCT Proposal_Code
 FROM MultiPartner
@@ -99,8 +99,8 @@ FROM MultiPartner
     JOIN Semester AS s USING (Semester_Id)
     JOIN Partner AS partner USING (Partner_Id)
     JOIN ProposalCode USING (ProposalCode_Id)
-WHERE {where}
-    """.format(where=" AND ".join(filters))
+{where}
+    """.format(where=" WHERE " + " AND ".join(filters) if len(filters) > 0 else "")
     results = pd.read_sql(allocated_time_sql, con=db.engine, params=params)
     return results
 
@@ -210,9 +210,9 @@ class Query(ObjectType):
             params["year"] = semester.year
             params["semester"] = semester.semester
 
-        df_of_proposals_allocated_time = find_proposals_allocated_time(params, filters)
-        df_of_proposals_submitted = find_proposals_submitted(params, filters)
-        df = pd.concat([df_of_proposals_allocated_time, df_of_proposals_submitted], ignore_index=True).drop_duplicates()
+        df_proposals_allocated_time = find_proposals_with_time_allocation(params, filters)
+        df_proposals_submitted = find_proposals_submitted(params, filters)
+        df = pd.concat([df_proposals_allocated_time, df_proposals_submitted], ignore_index=True).drop_duplicates()
 
         all_proposal_codes = df["Proposal_Code"].tolist()
 
