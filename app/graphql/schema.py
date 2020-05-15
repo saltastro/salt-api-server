@@ -100,12 +100,12 @@ FROM MultiPartner
     JOIN Partner AS partner USING (Partner_Id)
     JOIN ProposalCode USING (ProposalCode_Id)
 {where}
-    """.format(where=" WHERE " + " AND ".join(filters) if len(filters) > 0 else "")
+    """.format(where=" WHERE " + "(" + ") AND (".join(filters) + ")" if len(filters) > 0 else "")
     results = pd.read_sql(allocated_time_sql, con=db.engine, params=params)
     return results
 
 
-def find_proposals_submitted(params, filters):
+def find_submitted_proposals(params, filters):
     filters.append('Current = 1 AND Status NOT IN ("Deleted")')
     submitted_sql = """
 SELECT DISTINCT Proposal_Code
@@ -117,7 +117,7 @@ FROM Proposal
     JOIN MultiPartner USING(ProposalCode_Id)
     JOIN Partner AS partner ON (MultiPartner.Partner_Id = partner.Partner_Id)
 WHERE {where}
-    """.format(where=" AND ".join(filters))
+    """.format(where="(" + ") AND (".join(filters) + ")")
     results = pd.read_sql(submitted_sql, con=db.engine, params=params)
 
     return results
