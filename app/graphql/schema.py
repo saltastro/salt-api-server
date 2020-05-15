@@ -113,8 +113,8 @@ FROM Proposal
     JOIN ProposalCode USING(ProposalCode_Id)
     JOIN ProposalGeneralInfo USING (ProposalCode_Id)
     JOIN ProposalStatus USING (ProposalStatus_Id)
-    JOIN Semester AS s USING (Semester_Id)
     JOIN MultiPartner USING(ProposalCode_Id)
+    JOIN Semester AS s ON MultiPartner.Semester_Id=Semester.Semester_Id
     JOIN Partner AS partner ON (MultiPartner.Partner_Id = partner.Partner_Id)
 WHERE {where}
     """.format(where="(" + ") AND (".join(filters) + ")")
