@@ -211,7 +211,7 @@ class Query(ObjectType):
             params["semester"] = semester.semester
 
         df_proposals_allocated_time = find_proposals_with_time_allocation(params, filters)
-        df_proposals_submitted = find_proposals_submitted(params, filters)
+        df_proposals_submitted = find_proposals_with_time_requests(params, filters)
         df = pd.concat([df_proposals_allocated_time, df_proposals_submitted], ignore_index=True).drop_duplicates()
 
         all_proposal_codes = df["Proposal_Code"].tolist()
