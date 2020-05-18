@@ -91,7 +91,7 @@ def _check_auth_token():
         raise GraphQLError("A valid authentication token is required.")
 
 
-def find_proposals_with_time_allocation(params, filters):
+def find_proposals_with_time_requests(params, filters):
     allocated_time_sql = """
 SELECT DISTINCT Proposal_Code
 FROM MultiPartner
@@ -210,7 +210,7 @@ class Query(ObjectType):
             params["year"] = semester.year
             params["semester"] = semester.semester
 
-        df_proposals_allocated_time = find_proposals_with_time_allocation(params, filters)
+        df_proposals_allocated_time = find_proposals_with_time_requests(params, filters)
         df_proposals_submitted = find_proposals_submitted(params, filters)
         df = pd.concat([df_proposals_allocated_time, df_proposals_submitted], ignore_index=True).drop_duplicates()
 
