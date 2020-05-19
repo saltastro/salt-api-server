@@ -92,12 +92,28 @@ def _check_auth_token():
 
 
 def find_proposals_with_time_allocation(params, filters):
+    """
+    All of the proposal that are allocated time.
+
+    Parameters
+    ----------
+    params : Dict
+        The dictionary of SQL parameter
+    filters : Iterable[str]
+        The filters for the SQL.
+
+    Returns
+    -------
+    Proposal Code : DataFrame
+        Whether the user is an investigator on the proposal.
+
+    """
     allocated_time_sql = """
 SELECT DISTINCT Proposal_Code
 FROM MultiPartner
     JOIN PriorityAlloc USING (MultiPartner_Id)
-    JOIN Semester AS s USING (Semester_Id)
-    JOIN Partner AS partner USING (Partner_Id)
+    JOIN Semester USING (Semester_Id)
+    JOIN Partner USING (Partner_Id)
     JOIN ProposalCode USING (ProposalCode_Id)
 {where}
     """.format(where=" WHERE " + "(" + ") AND (".join(filters) + ")" if len(filters) > 0 else "")
@@ -106,6 +122,22 @@ FROM MultiPartner
 
 
 def find_proposals_with_time_requests(params, filters):
+    """
+    All of the proposal that are requesting time.
+
+    Parameters
+    ----------
+    params : Dict
+        The dictionary of SQL parameter
+    filters : Iterable[str]
+        The filters for the SQL.
+
+    Returns
+    -------
+    Proposal Code : DataFrame
+        Whether the user is an investigator on the proposal.
+
+    """
     filters.append('Current = 1 AND Status NOT IN ("Deleted")')
     submitted_sql = """
 SELECT DISTINCT Proposal_Code
@@ -114,8 +146,8 @@ FROM Proposal
     JOIN ProposalGeneralInfo USING (ProposalCode_Id)
     JOIN ProposalStatus USING (ProposalStatus_Id)
     JOIN MultiPartner USING(ProposalCode_Id)
-    JOIN Semester AS s ON MultiPartner.Semester_Id=s.Semester_Id
-    JOIN Partner AS partner ON (MultiPartner.Partner_Id = partner.Partner_Id)
+    JOIN Semester ON MultiPartner.Semester_Id=Semester.Semester_Id
+    JOIN Partner ON (MultiPartner.Partner_Id = Partner.Partner_Id)
 WHERE {where}
     """.format(where="(" + ") AND (".join(filters) + ")")
     results = pd.read_sql(submitted_sql, con=db.engine, params=params)
@@ -203,10 +235,10 @@ class Query(ObjectType):
         params = dict()
         filters = []
         if partner_code:
-            filters.append("partner.Partner_Code=%(partner_code)s")
+            filters.append("Partner.Partner_Code=%(partner_code)s")
             params["partner_code"] = partner_code
         if semester:
-            filters.append("(s.Year=%(year)s AND s.Semester=%(semester)s)")
+            filters.append("(Semester.Year=%(year)s AND Semester.Semester=%(semester)s)")
             params["year"] = semester.year
             params["semester"] = semester.semester
 
