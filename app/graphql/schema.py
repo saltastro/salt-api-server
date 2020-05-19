@@ -105,7 +105,7 @@ def find_proposals_with_time_allocation(params, filters):
     Returns
     -------
     Proposal Code : DataFrame
-        Whether the user is an investigator on the proposal.
+        The data frame of proposal codes.
 
     """
     allocated_time_sql = """
@@ -135,7 +135,7 @@ def find_proposals_with_time_requests(params, filters):
     Returns
     -------
     Proposal Code : DataFrame
-        Whether the user is an investigator on the proposal.
+        The data frame of proposal codes.
 
     """
     filters.append('Current = 1 AND Status NOT IN ("Deleted")')
