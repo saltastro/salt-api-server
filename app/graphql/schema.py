@@ -91,7 +91,7 @@ def _check_auth_token():
         raise GraphQLError("A valid authentication token is required.")
 
 
-def find_proposals_with_time_allocation(partner_code=None, semester=None):
+def find_proposals_with_time_allocation(partner_code, semester):
     """
     All the proposals that are allocated time.
 
@@ -132,7 +132,7 @@ FROM MultiPartner
     return results
 
 
-def find_proposals_with_time_requests(partner_code=None, semester=None):
+def find_proposals_with_time_requests(partner_code, semester):
     """
     All of the proposal that are requesting time.
 
@@ -253,17 +253,6 @@ class Query(ObjectType):
         return _TokenContent(token=token)
 
     def resolve_proposals(self, info, partner_code=None, semester=None):
-        # get the filter conditions
-        params = dict()
-        filters = []
-        if partner_code:
-            filters.append("Partner.Partner_Code=%(partner_code)s")
-            params["partner_code"] = partner_code
-        if semester:
-            filters.append("(Semester.Year=%(year)s AND Semester.Semester=%(semester)s)")
-            params["year"] = semester.year
-            params["semester"] = semester.semester
-
         df_proposals_allocated_time = find_proposals_with_time_allocation(partner_code=partner_code, semester=semester)
         df_proposals_submitted = find_proposals_with_time_requests(partner_code=partner_code, semester=semester)
         df = pd.concat([df_proposals_allocated_time, df_proposals_submitted], ignore_index=True).drop_duplicates()
