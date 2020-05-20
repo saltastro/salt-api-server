@@ -93,7 +93,7 @@ def _check_auth_token():
 
 def find_proposals_with_time_allocation(params, filters):
     """
-    All of the proposal that are allocated time.
+    All the proposal that are allocated time.
 
     Parameters
     ----------
