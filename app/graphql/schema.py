@@ -91,16 +91,16 @@ def _check_auth_token():
         raise GraphQLError("A valid authentication token is required.")
 
 
-def find_proposals_with_time_allocation(params, filters):
+def find_proposals_with_time_allocation(partner_code=None, semester=None):
     """
-    All the proposal that are allocated time.
+    All the proposals that are allocated time.
 
     Parameters
     ----------
-    params : Dict
-        The dictionary of SQL parameter
-    filters : Iterable[str]
-        The filters for the SQL.
+    partner_code : str
+        The partner Code such as "RSA". The partner code can be None for all partners
+    semester : str
+        The semester like "2020-1".
 
     Returns
     -------
@@ -108,6 +108,17 @@ def find_proposals_with_time_allocation(params, filters):
         The data frame of proposal codes.
 
     """
+    # get the filter conditions
+    params = dict()
+    filters = []
+    if partner_code:
+        filters.append("Partner.Partner_Code=%(partner_code)s")
+        params["partner_code"] = partner_code
+    if semester:
+        filters.append("(Semester.Year=%(year)s AND Semester.Semester=%(semester)s)")
+        params["year"] = semester.year
+        params["semester"] = semester.semester
+
     allocated_time_sql = """
 SELECT DISTINCT Proposal_Code
 FROM MultiPartner
@@ -121,16 +132,16 @@ FROM MultiPartner
     return results
 
 
-def find_proposals_with_time_requests(params, filters):
+def find_proposals_with_time_requests(partner_code=None, semester=None):
     """
     All of the proposal that are requesting time.
 
     Parameters
     ----------
-    params : Dict
-        The dictionary of SQL parameter
-    filters : Iterable[str]
-        The filters for the SQL.
+    partner_code : str
+        The partner Code such as "RSA". The partner code can be None for all partners
+    semester : str
+        The semester like "2020-1".
 
     Returns
     -------
@@ -138,6 +149,17 @@ def find_proposals_with_time_requests(params, filters):
         The data frame of proposal codes.
 
     """
+    # get the filter conditions
+    params = dict()
+    filters = []
+    if partner_code:
+        filters.append("Partner.Partner_Code=%(partner_code)s")
+        params["partner_code"] = partner_code
+    if semester:
+        filters.append("(Semester.Year=%(year)s AND Semester.Semester=%(semester)s)")
+        params["year"] = semester.year
+        params["semester"] = semester.semester
+
     filters.append('Current = 1 AND Status NOT IN ("Deleted")')
     submitted_sql = """
 SELECT DISTINCT Proposal_Code
@@ -242,8 +264,8 @@ class Query(ObjectType):
             params["year"] = semester.year
             params["semester"] = semester.semester
 
-        df_proposals_allocated_time = find_proposals_with_time_allocation(params, filters)
-        df_proposals_submitted = find_proposals_with_time_requests(params, filters)
+        df_proposals_allocated_time = find_proposals_with_time_allocation(partner_code=partner_code, semester=semester)
+        df_proposals_submitted = find_proposals_with_time_requests(partner_code=partner_code, semester=semester)
         df = pd.concat([df_proposals_allocated_time, df_proposals_submitted], ignore_index=True).drop_duplicates()
 
         all_proposal_codes = df["Proposal_Code"].tolist()
