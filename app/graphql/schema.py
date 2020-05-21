@@ -100,7 +100,7 @@ def find_proposals_with_time_allocation(partner_code, semester):
     partner_code : str
         The partner code, such as "RSA". If the proposal code is None, proposals are returned for all partners.
     semester : semester
-        The semester. If semester is None, proposals are returned for all semesters.
+        The semester. If the semester is None, proposals are returned for all semesters.
 
     Returns
     -------
@@ -135,14 +135,14 @@ FROM MultiPartner
 
 def find_proposals_with_time_requests(partner_code, semester):
     """
-    All of the proposal that are requesting time.
+    All the proposals that are requesting time.
 
     Parameters
     ----------
     partner_code : str
         The partner code, such as "RSA". If the proposal code is None, proposals are returned for all partners.
     semester : semester
-        The semester. If semester is None, proposals are returned for all semesters.
+        The semester. If the semester is None, proposals are returned for all semesters.
 
     Returns
     -------
@@ -201,7 +201,7 @@ class Query(ObjectType):
     )
 
     proposal = Field(
-        lambda: Proposal,
+        lambda: ProposalF
         description="A SALT proposal.",
         proposal_code=NonNull(String, description="The proposal code."),
     )
