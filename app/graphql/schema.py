@@ -98,16 +98,17 @@ def find_proposals_with_time_allocation(partner_code, semester):
     Parameters
     ----------
     partner_code : str
-        The partner Code such as "RSA". The partner code can be None for all partners
-    semester : str
-        The semester like "2020-1".
+        The partner code, such as "RSA". If the proposal code is None, proposals are returned for all partners.
+    semester : semester
+        The semester. If semester is None, proposals are returned for all semesters.
 
     Returns
     -------
-    Proposal Code : DataFrame
+    DataFrame
         The data frame of proposal codes.
 
     """
+
     # get the filter conditions
     params = dict()
     filters = []
@@ -139,16 +140,17 @@ def find_proposals_with_time_requests(partner_code, semester):
     Parameters
     ----------
     partner_code : str
-        The partner Code such as "RSA". The partner code can be None for all partners
-    semester : str
-        The semester like "2020-1".
+        The partner code, such as "RSA". If the proposal code is None, proposals are returned for all partners.
+    semester : semester
+        The semester. If semester is None, proposals are returned for all semesters.
 
     Returns
     -------
-    Proposal Code : DataFrame
+    DataFrame
         The data frame of proposal codes.
 
     """
+
     # get the filter conditions
     params = dict()
     filters = []
