@@ -20,6 +20,7 @@ class PartnerCode(Enum):
     HET = "HET"
     IUCAA = "IUCAA"
     KEY = "KEY"
+    ORP = "ORP"
     OTH = "OTH"
     POL = "POL"
     RSA = "RSA"
@@ -54,6 +55,8 @@ class PartnerCode(Enum):
             return "Inter-University Centre for Astronomy & Astrophysics"
         if self == PartnerCode.KEY:
             return "Partnership Proposals for Key Science"
+        if self == PartnerCode.ORP:
+            return "OPTICON-Radionet Pilot"
         if self == PartnerCode.OTH:
             return "Other"
         if self == PartnerCode.POL:
@@ -133,6 +136,7 @@ class ProposalType(Enum):
     SCIENCE = "Science"
     SCIENCE_LONG_TERM = "Science - Long Term"
     SCIENCE_VERIFICATION = "Science Verification"
+    OPTICON_RADIONET_PILOT = "OPTICON-Radionet Pilot"
 
     @property
     def description(self):
@@ -141,7 +145,7 @@ class ProposalType(Enum):
         if self == ProposalType.DIRECTOR_DISCRETIONARY_TIME:
             return "A proposal using Director's Discretionary Time."
         if self == ProposalType.ENGINEERING:
-            return "A proposal for helping with ewngineering work."
+            return "A proposal for helping with engineering work."
         if self == ProposalType.GRAVITATIONAL_WAVE_EVENT:
             return (
                 "A proposal for observing the optical counterpart of a "
@@ -156,7 +160,9 @@ class ProposalType(Enum):
         if self == ProposalType.SCIENCE_LONG_TERM:
             return "A proposal spanning multiple semesters."
         if self == ProposalType.SCIENCE_VERIFICATION:
-            return "A proposalm for helipng with science verification."
+            return "A proposal for helping with science verification."
+        if self == ProposalType.OPTICON_RADIONET_PILOT:
+            return "A proposal submitted as part of OPTICON-RadioNet Pilot."
 
         return "This is an undocumented proposal type."
 
