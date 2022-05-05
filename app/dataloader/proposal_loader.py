@@ -67,7 +67,6 @@ SELECT Proposal_Code, Title, ProposalType, Status, StatusComment, InactiveReason
        JOIN ProposalGeneralInfo AS pgi ON p.ProposalCode_Id = pgi.ProposalCode_Id
        JOIN ProposalStatus AS ps ON pgi.ProposalStatus_Id = ps.ProposalStatus_Id
        JOIN ProposalType AS type ON pgi.ProposalType_Id = type.ProposalType_Id
-       JOIN P1ObservingConditions AS p1o ON p1o.ProposalCode_Id = p.ProposalCode_Id
        LEFT JOIN ProposalInactiveReason AS pir
                  ON pgi.ProposalInactiveReason_Id = pir.ProposalInactiveReason_Id
        JOIN ProposalContact contact ON pc.ProposalCode_Id = contact.ProposalCode_Id
