@@ -1,6 +1,9 @@
 # Use the official Python 3.6 image as base image
 FROM python:3.6
 
+# Set up a non-root user
+RUN useradd -ms /bin/bash nonroot
+
 # Set the working directory in the container
 WORKDIR /app
 
@@ -9,9 +12,12 @@ COPY . /app
 
 # Install any needed dependencies specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install pandas
-RUN pip install numpy
-RUN pip install mysql
+
+# Change ownership of the application directory to the non-root user
+RUN chown -R nonroot /app
+
+# Switch to the non-root user
+USER nonroot
 
 # Expose the port on which your Flask app will run
 EXPOSE 5000
