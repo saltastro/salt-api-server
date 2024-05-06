@@ -33,9 +33,11 @@ Jinja2==2.11.3
 MarkupSafe==1.1.0
 mccabe==0.6.1
 more-itertools==4.3.0
-numpy==1.20.1
+mysql==0.0.3
+mysqlclient==2.1.1
+numpy==1.19.5
 packaging==18.0
-pandas==1.2.2
+pandas==1.1.5
 pluggy==0.8.0
 promise==2.2.1
 py==1.7.0
@@ -53,7 +55,6 @@ python-dateutil==2.8.1
 pytz==2021.1
 requests==2.20.1
 Rx==1.6.1
-saltuser==0.3.0
 sentry-sdk==0.5.5
 six==1.15.0
 snapshottest==0.5.0

@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  salt_server_api:
+    build: .
+    environment:
+      - PROPOSAL_DIR
+      - LOGS_DIR
+    env_file:
+      - .env
+    ports:
+      - "5000:5000"
+    volumes:
+      - ${PROPOSAL_DIR}/proposals
+      - ${LOGS_DIR}/salt_server_logs

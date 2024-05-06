@@ -1,8 +1,8 @@
 import jwt
 import os
 from flask import g, request
-from saltuser import SALTUser
 from app import db
+from app.saltuser import SALTUser
 
 
 class User:

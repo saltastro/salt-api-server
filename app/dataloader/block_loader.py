@@ -2,7 +2,7 @@ from collections import namedtuple
 import pandas as pd
 from promise import Promise
 from promise.dataloader import DataLoader
-from graphql import GraphQLError
+from graphql.error import GraphQLError
 from app import db
 from app.util import _SemesterContent, BlockStatus
 
