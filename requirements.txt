@@ -8,7 +8,7 @@ Babel==2.6.0
 black==18.9b0
 blinker==1.4
 bumpversion==0.5.3
-certifi==2018.10.15
+certifi==2022.12.7
 cffi==1.14.0
 chardet==3.0.4
 Click==7.0
