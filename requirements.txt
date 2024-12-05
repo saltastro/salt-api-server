@@ -4,7 +4,7 @@ appdirs==1.4.3
 asn1crypto==0.24.0
 atomicwrites==1.2.1
 attrs==18.2.0
-Babel==2.6.0
+Babel==2.9.1
 black==18.9b0
 blinker==1.4
 bumpversion==0.5.3
